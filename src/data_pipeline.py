@@ -10,11 +10,15 @@ warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
 def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, forecast_horizon, annual_inflation, annual_margin, trading_days):
     print(f"Lade Daten für {len(all_tickers)} Ticker...")
-    # show_errors=False entfernt. Um den Output dennoch sauber zu halten, nutzen wir progress=False
-    raw_data = yf.download(all_tickers, start=start_date, end=end_date, progress=False)['Adj Close']    
+    
+    # yfinance Update: progress=False hält das Terminal sauber, auto_adjust=True ersetzt 'Adj Close' durch 'Close'
+    raw_data = yf.download(all_tickers, start=start_date, end=end_date, progress=False, auto_adjust=True)['Close']
+    
+    # Bereinigung: Ticker mit zu kurzer Historie verwerfen, Rest forward-fillen
     threshold = len(raw_data) * 0.9
     data = raw_data.dropna(axis=1, thresh=threshold).ffill().dropna()
     
+    # Feature Engineering (1M, 3M, 6M Renditen)
     ret_1m = data.pct_change(21).add_suffix('_1M')
     ret_3m = data.pct_change(63).add_suffix('_3M')
     ret_6m = data.pct_change(126).add_suffix('_6M')
@@ -22,8 +26,10 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     
     future_return = data[target_ticker].pct_change(forecast_horizon).shift(-forecast_horizon)
 
+    # Zeitanteil des Prognosehorizonts im Verhältnis zum Gesamtjahr berechnen
     time_fraction = forecast_horizon / trading_days
     
+    # Skalierung von Baseline und Korridor auf den spezifischen Zeitraum
     period_baseline = annual_inflation * time_fraction
     period_margin = annual_margin * time_fraction
 
@@ -47,6 +53,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     X = df.drop(columns=['Target'])
     y = df['Target']
 
+    # Normierung (StandardScaler) zwingend vor der Selektion und Modellierung
     scaler = StandardScaler()
     X_scaled = pd.DataFrame(scaler.fit_transform(X), columns=X.columns, index=X.index)
     
