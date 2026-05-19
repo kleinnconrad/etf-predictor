@@ -1,16 +1,16 @@
-# ETF Market State Predictor
+# ETF Predictor
 
-This repository contains a machine learning pipeline to predict the medium-term market development of a target ETF (default: Deka DAX UCITS ETF, `ETFL01.DE`). 
+This repository contains a machine learning pipeline to predict the medium-term market development of a target ETF (default: SPY). 
 
 The model classifies the future market state into three discrete classes: Up, Down, and Flat. The statistical pipeline is based on Multinomial Logistic Regression (One-vs-Rest).
 
 ---
 
-## Model Architecture & Methodology
+## Model Architecture
 
 The pipeline addresses common issues in financial time series modeling, such as multicollinearity and high dimensionality, using a multi-stage architecture.
 
-### 1. Feature Engineering (Momentum)
+### 1. Feature Engineering
 Short- and medium-term momentum factors are used as predictors. Rolling returns for 1 month (21 days), 3 months (63 days), and 6 months (126 days) are calculated for each ticker in the specified universe.
 
 ### 2. Dynamic Target Classification
