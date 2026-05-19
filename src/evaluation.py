@@ -22,7 +22,7 @@ def evaluate_and_plot(model, X_optimal, y, forecast_horizon):
         X_tr, X_te = X_optimal.iloc[train_index], X_optimal.iloc[test_index]
         y_tr, y_te = y.iloc[train_index], y.iloc[test_index]
         
-        log_reg_cv = LogisticRegression(multi_class='ovr', solver='lbfgs', max_iter=1000)
+        log_reg_cv = LogisticRegression(solver='lbfgs', max_iter=1000)
         log_reg_cv.fit(X_tr, y_tr)
         y_cv_pred.extend(log_reg_cv.predict(X_te))
         y_cv_true.extend(y_te)
