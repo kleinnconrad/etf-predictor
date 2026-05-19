@@ -14,14 +14,14 @@ def perform_feature_selection(X_scaled, y, final_features=8):
     X_stage_1 = X_scaled[features_stage_1]
     
     # Multinomiale Logistische Regression (One-vs-Rest)
-    log_reg_base = LogisticRegression(multi_class='ovr', solver='lbfgs', max_iter=1000)
+    log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000)
     sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=3, n_jobs=-1)
     sfs.fit(X_stage_1, y)
     
     selected_features = features_stage_1[sfs.get_support()]
     
     X_optimal = X_scaled[selected_features]
-    model = LogisticRegression(multi_class='ovr', solver='lbfgs', max_iter=1000)
+    model = LogisticRegression(solver='lbfgs', max_iter=1000)
     model.fit(X_optimal, y)
 
     print("=== Ergebnis der Schrittweisen Variablenselektion (SFS) ===")
