@@ -10,8 +10,8 @@ warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
 def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, forecast_horizon, annual_inflation, annual_margin, trading_days):
     print(f"Lade Daten für {len(all_tickers)} Ticker...")
-    raw_data = yf.download(all_tickers, start=start_date, end=end_date, show_errors=False)['Adj Close']
-    
+    # show_errors=False entfernt. Um den Output dennoch sauber zu halten, nutzen wir progress=False
+    raw_data = yf.download(all_tickers, start=start_date, end=end_date, progress=False)['Adj Close']    
     threshold = len(raw_data) * 0.9
     data = raw_data.dropna(axis=1, thresh=threshold).ffill().dropna()
     
