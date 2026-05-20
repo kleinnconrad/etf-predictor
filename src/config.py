@@ -1,4 +1,5 @@
 # src/config.py
+import os
 
 TARGET_ETF = 'SPY'
 START_DATE = "2016-01-01"
