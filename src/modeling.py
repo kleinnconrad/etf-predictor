@@ -6,9 +6,10 @@ import numpy as np
 import os
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_selection import SequentialFeatureSelector, SelectKBest, f_classif
+from sklearn.model_selection import TimeSeriesSplit  # <-- NEU: Zwingend für Zeitreihen!
 from google import genai
 from config import GEMINI_API_KEY
-from audit import generate_variable_audit_table  # <-- NEU: Import für das Audit-Skript
+from audit import generate_variable_audit_table
 
 def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
@@ -57,8 +58,6 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60)
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, pre_filter_k=80, timestamp=None):
     print(f"Führe Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
-    # Stufe 1: Univariater Filter
-    # Wir stellen sicher, dass k nicht größer ist als die überhaupt vorhandenen Features
     k_actual = min(pre_filter_k, X_scaled.shape[1])
     kbest = SelectKBest(score_func=f_classif, k=k_actual)
     kbest.fit(X_scaled, y)
@@ -67,21 +66,28 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     rejected_stage_1 = X_scaled.columns[~kbest.get_support()]
     X_stage_1 = X_scaled[features_stage_1]
     
-    # Stufe 2: Wrapper Methode (Sequentielle Selektion der finalen Features)
-    # Hinweis: Je größer pre_filter_k, desto länger dauert dieser Schritt!
+    # --- NEU: Chronologisch korrekter TimeSeriesSplit ---
+    # Wir machen 5 Splits und setzen die Gap exakt auf deinen Vorhersagehorizont
+    tscv = TimeSeriesSplit(n_splits=5, gap=horizon)
+    
     log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000)
-    sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=3, n_jobs=-1)
+    sfs = SequentialFeatureSelector(
+        log_reg_base, 
+        n_features_to_select=final_features, 
+        direction='forward', 
+        cv=tscv,        # <-- HIER IST DER FIX
+        n_jobs=-1
+    )
     sfs.fit(X_stage_1, y)
+    # ----------------------------------------------------
     
     selected_features = features_stage_1[sfs.get_support()]
     rejected_stage_2 = features_stage_1[~sfs.get_support()]
     X_optimal = X_scaled[selected_features]
     
-    # Finales Modell trainieren
     model = LogisticRegression(solver='lbfgs', max_iter=1000)
     model.fit(X_optimal, y)
 
-    # --- PREDICT LOGIK (Für den aktuellen Tag) ---
     X_latest_optimal = latest_features_scaled[selected_features]
     prediction = model.predict(X_latest_optimal)[0]
     probabilities = model.predict_proba(X_latest_optimal)[0]
@@ -167,7 +173,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             
         print(f"Ergebnisse gespeichert unter: {md_path}")
         
-        # === NEU: TRIGGER FÜR DAS VARIABLEN-AUDIT ===
         try:
             generate_variable_audit_table(
                 X_columns=X_scaled.columns, 
@@ -179,6 +184,5 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             )
         except Exception as e:
             print(f"Fehler bei der Generierung des Variablen-Audits: {e}")
-        # ============================================
         
     return model, X_optimal
