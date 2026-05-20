@@ -14,17 +14,31 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60)
         return "> *Kein API-Key hinterlegt. LLM-Analyse übersprungen.*"
     
     client = genai.Client(api_key=GEMINI_API_KEY)
+    
     prompt = f"""
-    Du bist ein quantitativer Finanzanalyst. Mein Modell zur Vorhersage 
-    des Marktzustandes (Up, Down, Flat) für den {target_etf} nutzt diese Prädiktoren:
+    Du bist ein quantitativer Macro-Analyst eines Hedgefonds. Mein Modell zur Vorhersage 
+    des Marktzustandes (Up, Down, Flat) für den {target_etf} (Horizont: 6 Monate) hat 
+    basierend auf einer Schrittweisen Variablenselektion folgende Prädiktoren ausgewählt 
+    und gewichtet (Kürzel am Ende zeigen das Momentum-Fenster, z.B. _6M):
+    
     {coeff_df_string}
-    Schreibe eine fundierte, professionelle Interpretation (max. 3 Absätze), 
-    warum diese Indikatoren vorlaufend wirken. Nutze harte wirtschaftliche Logik.
+    
+    Liefere eine hochgradig elaborierte, aber extrem präzise ökonomische Einschätzung, 
+    warum dieses spezifische Set an Indikatoren aktuell vorlaufend wirkt. 
+    
+    Regeln für die Ausgabe:
+    - Absolutes Verbot von Fließtexten und Geschwafel. 
+    - Antworte ausschließlich in knackigen Spiegelstrichen.
+    - Nutze harte, institutionelle Logik (Korrelationen, Zinsstruktur, Sektor-Rotationen).
+    
+    Strukturiere deine Antwort zwingend in diese drei kurzen Blöcke:
+    **1. Makroökonomisches Setup:** (Warum wurden Zinsen/Währungen/Rohstoffe gewählt oder ignoriert?)
+    **2. Sektor- & Marktdynamik:** (Was verraten die ausgewählten Equities/Sektoren über den Konjunkturzyklus?)
+    **3. Quant-Konklusion:** (Was ist das übergeordnete Narrativ für den {target_etf} in den nächsten 6 Monaten?)
     """
     
     for attempt in range(max_retries):
         try:
-            # Wir nutzen das aktuelle 2.5 Modell
             response = client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=prompt,
@@ -34,6 +48,7 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60)
             error_msg = str(e)
             if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
                 if attempt < max_retries - 1:
+                    print(f"API Rate Limit erreicht. Warte {delay} Sekunden...")
                     time.sleep(delay)
                     continue
             return f"> *Fehler bei der LLM-Abfrage: {e}*"
@@ -41,27 +56,30 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60)
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, timestamp=None):
     print("Führe Feature Selection durch...")
     
+    # Stufe 1: Univariater Filter (Schnelle Reduktion auf 40 Features)
     kbest = SelectKBest(score_func=f_classif, k=40)
     kbest.fit(X_scaled, y)
     features_stage_1 = X_scaled.columns[kbest.get_support()]
     X_stage_1 = X_scaled[features_stage_1]
     
+    # Stufe 2: Wrapper Methode (Sequentielle Selektion der finalen Features)
     log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000)
     sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=3, n_jobs=-1)
     sfs.fit(X_stage_1, y)
     
     selected_features = features_stage_1[sfs.get_support()]
-    
     X_optimal = X_scaled[selected_features]
+    
+    # Finales Modell trainieren
     model = LogisticRegression(solver='lbfgs', max_iter=1000)
     model.fit(X_optimal, y)
 
-    # --- PREDICT LOGIK ---
+    # --- PREDICT LOGIK (Für den aktuellen Tag) ---
     X_latest_optimal = latest_features_scaled[selected_features]
     prediction = model.predict(X_latest_optimal)[0]
     probabilities = model.predict_proba(X_latest_optimal)[0]
     
-    # Mapping der Klassen (-1, 0, 1) auf Wahrscheinlichkeiten
+    # Mapping der Klassen (-1, 0, 1) auf Wahrscheinlichkeiten (verhindert Fehler bei fehlenden Klassen)
     prob_dict = dict(zip(model.classes_, probabilities))
     prob_down = prob_dict.get(-1, 0)
     prob_flat = prob_dict.get(0, 0)
@@ -70,11 +88,20 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     class_mapping = {-1: "Down 🔴", 0: "Flat 🟡", 1: "Up 🟢"}
     pred_label = class_mapping.get(prediction, "Unknown")
     
-    print("\n=== Aktuelle Modell-Prognose ===")
-    print(f"Datum: {latest_features_scaled.index[0].strftime('%Y-%m-%d')}")
+    predict_date = latest_features_scaled.index[0]
+    if isinstance(predict_date, pd.Timestamp):
+        predict_date_str = predict_date.strftime('%Y-%m-%d')
+    else:
+        predict_date_str = str(predict_date)
+    
+    print("\n" + "="*35)
+    print("=== Aktuelle Modell-Prognose ===")
+    print("="*35)
+    print(f"Datum: {predict_date_str}")
     print(f"Vorhersage: {pred_label}")
     print(f"Wahrscheinlichkeiten: Down={prob_down:.2%}, Flat={prob_flat:.2%}, Up={prob_up:.2%}\n")
 
+    # Wichtigkeit der Variablen berechnen (Mean Absolut der Koeffizienten)
     importance = np.mean(np.abs(model.coef_), axis=0)
     coeff_df = pd.DataFrame({
         'Prädiktor': selected_features,
@@ -83,6 +110,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     
     table_string = coeff_df.to_string(index=False)
     
+    # Artefakte und LLM-Report generieren
     if timestamp:
         print("Hole ökonomische Interpretation vom LLM...")
         llm_analysis = get_llm_interpretation(table_string, target_etf)
@@ -99,9 +127,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             f.write(f"- **Target ETF:** {target_etf}\n")
             f.write(f"- **Forecast Horizon:** {horizon} Trading Days\n\n")
             
-            # PROMINENTE PLATZIERUNG DES PREDICTS
             f.write("## 🚀 Aktuelle Marktprognose (Predict)\n\n")
-            f.write(f"Basierend auf den Schlusskursen vom **{latest_features_scaled.index[0].strftime('%Y-%m-%d')}** prognostiziert das Modell:\n\n")
+            f.write(f"Basierend auf den Schlusskursen vom **{predict_date_str}** prognostiziert das Modell:\n\n")
             f.write(f"> **Klasse:** {pred_label}\n>\n")
             f.write(f"> **Wahrscheinlichkeiten:** Down: {prob_down:.2%} | Flat: {prob_flat:.2%} | Up: {prob_up:.2%}\n\n")
             f.write("---\n\n")
@@ -112,7 +139,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             for _, row in coeff_df.iterrows():
                 f.write(f"| {row['Prädiktor']} | {row['Einfluss (Mean Absolut)']:.6f} |\n")
             
-            f.write("\n## 🤖 KI-Interpretation der Prädiktoren\n\n")
+            f.write("\n## 🤖 KI-Interpretation der Prädiktoren (Hedgefonds Analyst)\n\n")
             f.write(llm_analysis + "\n\n")
             
             f.write("## Mathematische Modellparameter\n\n")
