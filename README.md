@@ -65,10 +65,14 @@ Hyperparameters and economic assumptions are managed in `src/config.py`.
 
 Historical price data (Adjusted Close) is fetched via the Yahoo Finance API (`yfinance`). 
 
-The base universe includes major global market drivers and can be modified in `config.py`.
-- **USA:** AAPL, MSFT, GOOGL, AMZN, NVDA, META, BRK-B, LLY, V, JPM
-- **Germany:** SAP, SIE, ALV, DTE, AIR, VOW3, MBG, BMW, BAS, MUV2
-- **UK & Japan:** Selected heavyweights (e.g., SHEL, AZN, Toyota, Sony)
+To ensure a robust and globally diversified feature space, the base universe (`config.py`) is structured across orthogonal macro asset classes rather than just highly correlated single stocks:
+- **Macro Indicators:** Treasury Yields (10Y, 13W), VIX (Volatility), US Dollar Index.
+- **Commodities:** Crude Oil, Gold, Copper ("Dr. Copper" as a leading economic indicator).
+- **Broad Sectors & Indices:** US Financials, Tech, Energy, Biotech, Emerging Markets, DAX, Nikkei.
+- **Systemic Single Stocks:** Select heavyweight drivers across the US, EU, UK, and Japan.
+
+**Resulting Feature Space:**
+While the base universe consists of approximately 35 raw tickers, the pipeline's feature engineering expands this into a high-dimensional dataset. By calculating the 1-month, 3-month, and 6-month momentum for every single asset, the model generates and trains on **over 100 distinct macroeconomic variables**. This allows the algorithm to detect complex cross-asset relationships (e.g., falling copper momentum combined with a rising Dollar) before predicting the target ETF.
 
 Tickers missing more than 10% of the requested historical data (e.g., due to recent IPOs) are automatically dropped during preprocessing.
 
