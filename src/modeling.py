@@ -68,8 +68,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     X_stage_1 = X_scaled[features_stage_1]
     
     # --- Robuster TimeSeriesSplit ---
-    # Minimales Trainingsfenster auf 3 Jahre setzen (756 Tage), um 
-    # verschiedene Marktphasen abzudecken und den Klassen-Error zu vermeiden.
     initial_train_size = 252 * 3 
     
     if initial_train_size >= len(X_stage_1):
@@ -87,7 +85,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     )
     
     # Stufe 2: Wrapper Methode (Sequentielle Selektion der finalen Features)
-    log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000)
+    # NEU: class_weight='balanced' zwingt das Modell, seltene Events (Crashs) stärker zu gewichten
+    log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight='balanced')
     sfs = SequentialFeatureSelector(
         log_reg_base, 
         n_features_to_select=final_features, 
@@ -102,7 +101,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     X_optimal = X_scaled[selected_features]
     
     # Finales Modell trainieren
-    model = LogisticRegression(solver='lbfgs', max_iter=1000)
+    # NEU: class_weight='balanced'
+    model = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight='balanced')
     model.fit(X_optimal, y)
 
     # --- PREDICT LOGIK (Für den aktuellen Tag) ---
