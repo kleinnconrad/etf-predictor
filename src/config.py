@@ -17,3 +17,6 @@ TICKERS_JP = ['7203.T', '6758.T', '8306.T', '9984.T', '6861.T', '9432.T', '8035.
 
 def get_all_tickers():
     return list(set([TARGET_ETF] + TICKERS_US + TICKERS_DE + TICKERS_UK + TICKERS_JP))
+
+# LLM Configuration
+GEMINI_API_KEY = "AIzaSyDU4P0MV4t_bikNFt2qY55e1f2OrgYIeBA"
