@@ -53,21 +53,27 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60)
                     continue
             return f"> *Fehler bei der LLM-Abfrage: {e}*"
 
-def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, timestamp=None):
-    print("Führe Feature Selection durch...")
+def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, pre_filter_k=80, timestamp=None):
+    print(f"Führe Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
-    # Stufe 1: Univariater Filter (Schnelle Reduktion auf 40 Features)
-    kbest = SelectKBest(score_func=f_classif, k=40)
+    # Stufe 1: Univariater Filter
+    # Wir stellen sicher, dass k nicht größer ist als die überhaupt vorhandenen Features
+    k_actual = min(pre_filter_k, X_scaled.shape[1])
+    kbest = SelectKBest(score_func=f_classif, k=k_actual)
     kbest.fit(X_scaled, y)
+    
     features_stage_1 = X_scaled.columns[kbest.get_support()]
+    rejected_stage_1 = X_scaled.columns[~kbest.get_support()]
     X_stage_1 = X_scaled[features_stage_1]
     
     # Stufe 2: Wrapper Methode (Sequentielle Selektion der finalen Features)
+    # Hinweis: Je größer pre_filter_k, desto länger dauert dieser Schritt!
     log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000)
     sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=3, n_jobs=-1)
     sfs.fit(X_stage_1, y)
     
     selected_features = features_stage_1[sfs.get_support()]
+    rejected_stage_2 = features_stage_1[~sfs.get_support()]
     X_optimal = X_scaled[selected_features]
     
     # Finales Modell trainieren
@@ -79,7 +85,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     prediction = model.predict(X_latest_optimal)[0]
     probabilities = model.predict_proba(X_latest_optimal)[0]
     
-    # Mapping der Klassen (-1, 0, 1) auf Wahrscheinlichkeiten (verhindert Fehler bei fehlenden Klassen)
     prob_dict = dict(zip(model.classes_, probabilities))
     prob_down = prob_dict.get(-1, 0)
     prob_flat = prob_dict.get(0, 0)
@@ -101,7 +106,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     print(f"Vorhersage: {pred_label}")
     print(f"Wahrscheinlichkeiten: Down={prob_down:.2%}, Flat={prob_flat:.2%}, Up={prob_up:.2%}\n")
 
-    # Wichtigkeit der Variablen berechnen (Mean Absolut der Koeffizienten)
     importance = np.mean(np.abs(model.coef_), axis=0)
     coeff_df = pd.DataFrame({
         'Prädiktor': selected_features,
@@ -110,7 +114,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     
     table_string = coeff_df.to_string(index=False)
     
-    # Artefakte und LLM-Report generieren
     if timestamp:
         print("Hole ökonomische Interpretation vom LLM...")
         llm_analysis = get_llm_interpretation(table_string, target_etf)
@@ -133,13 +136,25 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             f.write(f"> **Wahrscheinlichkeiten:** Down: {prob_down:.2%} | Flat: {prob_flat:.2%} | Up: {prob_up:.2%}\n\n")
             f.write("---\n\n")
             
-            f.write("## Ausgewählte Prädiktoren (SFS)\n\n")
+            f.write("## 🎯 Ausgewählte Prädiktoren (SFS)\n\n")
             f.write("| Prädiktor | Einfluss (Mean Absolut) |\n")
             f.write("| :--- | :--- |\n")
             for _, row in coeff_df.iterrows():
                 f.write(f"| {row['Prädiktor']} | {row['Einfluss (Mean Absolut)']:.6f} |\n")
+            f.write("\n")
             
-            f.write("\n## 🤖 KI-Interpretation der Prädiktoren (Hedgefonds Analyst)\n\n")
+            f.write("## 🗑️ Aussortierte Prädiktoren\n\n")
+            f.write("### 1. In der Endauswahl verworfen (SFS Rejects)\n")
+            f.write("> *Diese Variablen hatten anfängliche Relevanz, boten dem Modell in Kombination mit den Top-Prädiktoren aber keinen ausreichenden Informationszugewinn mehr (Multikollinearität).* \n\n")
+            f.write(f"`{', '.join(rejected_stage_2.tolist())}`\n\n")
+            
+            f.write("### 2. Im Basisfilter verworfen (ANOVA Rejects)\n")
+            f.write(f"<details>\n<summary>Klicken, um alle <b>{len(rejected_stage_1)}</b> in Stufe 1 aussortierten Variablen anzuzeigen (Geringste Signifikanz)</summary>\n\n")
+            f.write(f"`{', '.join(rejected_stage_1.tolist())}`\n")
+            f.write("\n</details>\n\n")
+            f.write("---\n\n")
+            
+            f.write("## 🤖 KI-Interpretation der Prädiktoren (Hedgefonds Analyst)\n\n")
             f.write(llm_analysis + "\n\n")
             
             f.write("## Mathematische Modellparameter\n\n")
