@@ -28,8 +28,8 @@ The model classifies returns based on macroeconomic assumptions scaled to the sp
 
 ### 3. Two-Stage Feature Selection
 To maintain model stability, feature selection is performed in two steps:
-- **Stage 1 (Filter):** A univariate ANOVA F-test (`SelectKBest`) reduces the feature space to the top 40 predictors, decreasing computational load.
-- **Stage 2 (Wrapper):** Sequential Feature Selection (`SequentialFeatureSelector`) with 3-fold cross-validation identifies the optimal subset (default: 8 features) for the logistic regression model.
+- **Stage 1 (Filter):** A univariate ANOVA F-test (`SelectKBest`) reduces the feature space to the top 80 predictors. This dynamic pre-filter rapidly eliminates the ~20-30 weakest variables (pure noise), keeping the computational load for the wrapper stage manageable.
+- **Stage 2 (Wrapper):** Sequential Feature Selection (`SequentialFeatureSelector`) with 3-fold cross-validation identifies the optimal subset (default: 8 features) from the remaining 80 variables to combat multicollinearity.
 
 ### 4. Evaluation (TimeSeries Split)
 Out-of-sample evaluation is performed using a `TimeSeriesSplit`. The `gap` parameter is set exactly to the forecast horizon to prevent data leakage from overlapping return windows.
