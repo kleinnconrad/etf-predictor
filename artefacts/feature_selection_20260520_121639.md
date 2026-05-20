@@ -4,7 +4,7 @@
 - **Target ETF:** SPY
 - **Forecast Horizon:** 126 Trading Days
 
-## 🚀 Aktuelle Marktprognose (Predict)
+## Aktuelle Marktprognose (Predict)
 
 Basierend auf den Schlusskursen vom **2026-05-19** prognostiziert das Modell:
 
@@ -14,7 +14,7 @@ Basierend auf den Schlusskursen vom **2026-05-19** prognostiziert das Modell:
 
 ---
 
-## 🎯 Ausgewählte Prädiktoren (SFS)
+## Ausgewählte Prädiktoren (SFS)
 
 | Prädiktor | Einfluss (Mean Absolut) |
 | :--- | :--- |
@@ -27,7 +27,7 @@ Basierend auf den Schlusskursen vom **2026-05-19** prognostiziert das Modell:
 | XBI_6M | 0.072574 |
 | AZN.L_3M | 0.071036 |
 
-## 🗑️ Aussortierte Prädiktoren
+## Aussortierte Prädiktoren
 
 ### 1. In der Endauswahl verworfen (SFS Rejects)
 > *Diese Variablen hatten anfängliche Relevanz, boten dem Modell in Kombination mit den Top-Prädiktoren aber keinen ausreichenden Informationszugewinn mehr (Multikollinearität).* 
