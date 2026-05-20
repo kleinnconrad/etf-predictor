@@ -63,20 +63,6 @@ Basierend auf den Schlusskursen vom **2026-05-19** prognostiziert das Modell:
 *   **Subtile Risikosteuerung:** Eine sekundäre, aber substanzielle Rolle spielen Rohstoffpreise (SHEL) für Inflationserwartungen und Safe-Haven-Assets (GC=F) sowie defensive Sektoren (AZN.L) für die Risikobereitschaft. Dies impliziert, dass das positive Tech-Narrativ durch persistente makroökonomische Unsicherheiten (Inflation, Zinsen, Geopolitik) moderiert wird, die ein potenzielles Downside-Risiko darstellen.
 *   **Marktcharakterisierung:** Der Markt ist in den nächsten 6 Monaten durch eine Kombination aus *Tech-led Growth Optimism* und einer *diskreten, aber konstanten Vigilanz gegenüber makroökonomischen "Tail-Risiken"* gekennzeichnet, welche über Rohstoffmärkte und traditionelle Safe-Haven-Assets signalisiert werden.
 
-## Mathematische Modellparameter
-
-- **Intercepts:** `[-0.08668891609152833, -1.5708409703966066, 1.6575298864881338]`
-
-- **Koeffizienten-Matrix:**
-  ```text
-[[ 0.16190333  0.47287942  0.08380908 -0.19488734 -0.63759673 -0.04406737
-   0.29264159 -0.09244559]
- [ 0.02118795  0.03141228  0.02274425 -0.15518541 -0.07310679 -0.06756288
-   0.05136124 -0.01641559]
- [-0.18309129 -0.5042917  -0.10655333  0.35007275  0.71070353  0.11163025
-  -0.34400283  0.10886118]]
-  ```
-
 # Variablen-Audit
 
 > Dieses Dokument protokolliert alle berechneten Momentum-Variablen der Pipeline. Es erklärt transparent, welche Variablen aktiv Vorhersagen treffen, welche aufgrund redundanter Informationen (Multikollinearität) vom Algorithmus ignoriert wurden, und welche Variablen keine statistische Relevanz (ANOVA F-Test) aufwiesen.
@@ -170,3 +156,17 @@ Basierend auf den Schlusskursen vom **2026-05-19** prognostiziert das Modell:
 | **XLF_1M** | Financial Select Sector SPDR Fund | 🔴 Verworfen (Keine Signifikanz) | 0.7607 | - | Börsengehandelter Fonds, der die größten US-Finanzunternehmen abbildet; Indikator für die Gesundheit des US-Banken- und Finanzsektors. |
 | **MSFT_1M** | Microsoft Corp. | 🔴 Verworfen (Keine Signifikanz) | 0.7995 | - | Führendes Software- und Cloud-Computing-Unternehmen; repräsentiert die Stärke des Technologie- und Unternehmenssoftware-Sektors. |
 | **SIE.DE_1M** | Siemens AG | 🔴 Verworfen (Keine Signifikanz) | 0.8435 | - | Globaler Technologiekonzern mit Fokus auf Industrie, Infrastruktur und Mobilität; ein Frühindikator für die deutsche und europäische Industrieproduktion. |
+
+## Mathematische Modellparameter
+
+- **Intercepts:** `[-0.08668891609152833, -1.5708409703966066, 1.6575298864881338]`
+
+- **Koeffizienten-Matrix:**
+  ```text
+[[ 0.16190333  0.47287942  0.08380908 -0.19488734 -0.63759673 -0.04406737
+   0.29264159 -0.09244559]
+ [ 0.02118795  0.03141228  0.02274425 -0.15518541 -0.07310679 -0.06756288
+   0.05136124 -0.01641559]
+ [-0.18309129 -0.5042917  -0.10655333  0.35007275  0.71070353  0.11163025
+  -0.34400283  0.10886118]]
+  ```
