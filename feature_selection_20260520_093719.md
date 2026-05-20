@@ -1,10 +1,10 @@
-# 📈 ETF Predictor Pipeline-Report
+# ETF Predictor Pipeline-Report
 
 - **Generiert am:** 2026-05-20 09:37:51
 - **Target ETF:** SPY
 - **Forecast Horizon:** 126 Trading Days
 
-## 🚀 Aktuelle Marktprognose (Predict)
+## Aktuelle Marktprognose (Predict)
 
 Basierend auf den Schlusskursen vom **2026-05-19** prognostiziert das Modell:
 
@@ -27,7 +27,7 @@ Basierend auf den Schlusskursen vom **2026-05-19** prognostiziert das Modell:
 | 9432.T_6M | 0.133114 |
 | META_1M | 0.078498 |
 
-## 🤖 KI-Interpretation der Prädiktoren
+## KI-Interpretation der Prädiktoren
 
 Als quantitativer Finanzanalyst lässt sich die führende Rolle dieser Prädiktoren für den SPY durch ihre globale Diversifizierung, sektorale Sensitivität und ihren Status als Frühindikatoren für makroökonomische Trends und Kapitalflüsse erklären. Die Mehrheit der hier aufgeführten Unternehmen sind global agierende Großkonzerne aus Europa und Japan, die verschiedene Schlüsselsektoren abbilden. Ihre weitreichenden Lieferketten und Absatzmärkte machen sie zu Seismographen für weltwirtschaftliche Verschiebungen, die sich oft zuerst in internationalen Märkten manifestieren, bevor sie sich auf den stärker US-zentrierten SPY auswirken. Veränderungen in deren Geschäftsmodellen, Erwartungen und Aktienkursen signalisieren daher frühzeitig globale Nachfrage-, Angebots- und Stimmungsänderungen.
 
