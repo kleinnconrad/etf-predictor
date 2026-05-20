@@ -61,20 +61,24 @@ Hyperparameters and economic assumptions are managed in `src/config.py`.
 
 ---
 
-## Data Source & Investment Universe
+## Data Source & 360° Macro Universe
 
 Historical price data (Adjusted Close) is fetched via the Yahoo Finance API (`yfinance`). 
 
-To ensure a robust and globally diversified feature space, the base universe (`config.py`) is structured across orthogonal macro asset classes rather than just highly correlated single stocks:
-- **Macro Indicators:** Treasury Yields (10Y, 13W), VIX (Volatility), US Dollar Index.
-- **Commodities:** Crude Oil, Gold, Copper ("Dr. Copper" as a leading economic indicator).
-- **Broad Sectors & Indices:** US Financials, Tech, Energy, Biotech, Emerging Markets, DAX, Nikkei.
-- **Systemic Single Stocks:** Select heavyweight drivers across the US, EU, UK, and Japan.
+### The "Macro-Proxy" Approach (Combating Multicollinearity)
+A naive machine learning model trained on 100 random US equities will suffer heavily from **multicollinearity**. Since equities within the same market are highly correlated, the model receives redundant signals (e.g., if the SPY crashes, 95% of its constituents crash simultaneously). This illusion of data density leads to overfitting and poor out-of-sample forecasting.
+
+To solve this, the pipeline utilizes a **360-degree macro-proxy universe**. Instead of tracking highly correlated single stocks, the `config.py` curates ~50 distinct assets representing completely orthogonal economic forces. This ensures the Sequential Feature Selector (SFS) has access to independent, non-overlapping predictors:
+
+- **Cost of Capital & Fear:** Treasury Yields (`^TNX`, `^IRX`), the VIX (`^VIX`), and the US Dollar Index (`DX-Y.NYB`).
+- **Credit Risk & Systemic Stress:** High Yield Junk Bonds (`HYG`) measure corporate default risks, while long-term Treasuries (`TLT`) act as a proxy for institutional flight-to-safety.
+- **Inflation & Industrial Demand:** Crude Oil, "Dr. Copper" (`HG=F`), and Agricultural Commodities (Corn, Wheat) provide leading signals for supply-side inflation.
+- **Institutional Sector Rotation:** The model tracks capital flows between cyclical (`XLY` Consumer Discretionary, `XLK` Tech) and defensive (`XLU` Utilities, `XLP` Staples) sectors to detect broad market shifts before they reflect in the main indices.
+- **Alternative Liquidity:** Bitcoin (`BTC-USD`) is included as a modern proxy for global excess liquidity and risk-on sentiment.
+- **Global Systemic Equities:** A highly restricted, focused selection of heavyweight market drivers across the US, EU, UK, and Japan.
 
 **Resulting Feature Space:**
-While the base universe consists of approximately 35 raw tickers, the pipeline's feature engineering expands this into a high-dimensional dataset. By calculating the 1-month, 3-month, and 6-month momentum for every single asset, the model generates and trains on **over 100 distinct macroeconomic variables**. This allows the algorithm to detect complex cross-asset relationships (e.g., falling copper momentum combined with a rising Dollar) before predicting the target ETF.
-
-Tickers missing more than 10% of the requested historical data (e.g., due to recent IPOs) are automatically dropped during preprocessing.
+The pipeline calculates the 1-month, 3-month, and 6-month momentum for each of these ~50 base assets. This generates a matrix of **~150 distinct macroeconomic variables**. Because the base assets are carefully selected to be fundamentally orthogonal, the algorithmic wrapper (SFS) can construct highly robust, non-correlated predictor sets (e.g., combining falling copper momentum with rising junk bond yields and a strong dollar) to forecast the target ETF.
 
 ---
 

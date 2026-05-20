@@ -6,11 +6,8 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. DYNAMISCHE ZEITFENSTER
 # ==========================================
-# END_DATE ist immer der tagesaktuelle Lauf
 END_DATE = datetime.today().strftime('%Y-%m-%d')
-
-# START_DATE liegt exakt 10 Jahre zurück, um dem Modell genug 
-# Historie für das Training und die 126-Tage-Features zu geben.
+# 10 Jahre Historie für saubere 126-Tage-Features und genug Trainingsdaten
 START_DATE = (datetime.today() - timedelta(days=365 * 10)).strftime('%Y-%m-%d')
 
 # ==========================================
@@ -19,41 +16,73 @@ START_DATE = (datetime.today() - timedelta(days=365 * 10)).strftime('%Y-%m-%d')
 TARGET_ETF = 'SPY'
 FORECAST_HORIZON_DAYS = 126    # Prognose für 6 Monate in die Zukunft
 
-ANNUAL_INFLATION_RATE = 0.025  # 2,5 % Basis-Wachstum (Inflation) p.a.
+ANNUAL_INFLATION_RATE = 0.025  # 2,5 % Basis-Wachstum p.a.
 ANNUAL_MARGIN = 0.01           # 1,0 % Toleranz-Korridor (Up/Flat/Down)
 TRADING_DAYS_PER_YEAR = 252    
 
 # ==========================================
-# 3. INVESTMENT UNIVERSUM (Features)
+# 3. DAS 360-GRAD INVESTMENT UNIVERSUM
 # ==========================================
 
-# Globale Makro-Indikatoren (Zinsen, Volatilität, Währungen)
+# Makro-Basics (Zinsen, Volatilität, Währungen)
 MACRO_INDICATORS = [
-    '^TNX',    # US 10-Year Treasury Yield (Langfristige Zinsen)
-    '^IRX',    # 13-Week Treasury Bill (Kurzfristige Zinsen)
-    '^VIX',    # Volatility Index (Angst-Barometer)
+    '^TNX',    # US 10-Year Treasury Yield
+    '^IRX',    # 13-Week Treasury Bill 
+    '^VIX',    # Volatility Index 
     'DX-Y.NYB',# US Dollar Index
 ]
 
-# Rohstoffe (Inflations- und Konjunktur-Signale)
+# Industrie- & Edelrohstoffe
 COMMODITIES = [
-    'CL=F',    # Crude Oil (Konjunkturmotor)
-    'GC=F',    # Gold (Sicherer Hafen)
-    'HG=F',    # Kupfer (Frühindikator für Industrie)
+    'CL=F',    # Crude Oil 
+    'GC=F',    # Gold 
+    'HG=F',    # Copper ("Dr. Copper")
 ]
 
-# Breite Sektoren & Märkte
+# Agrar-Rohstoffe (Inflations-Indikatoren)
+AGRI_COMMODITIES = [
+    'ZC=F',    # Corn (Mais)
+    'ZW=F',    # Wheat (Weizen)
+    'LE=F',    # Live Cattle (Lebendrind)
+]
+
+# Kreditrisiko & Anleihen (Frühindikatoren für Stress)
+CREDIT_RISK = [
+    'HYG',     # High Yield Corporate Bonds (Junk Bonds)
+    'TLT',     # 20+ Year Treasury Bonds (Sicherer Hafen)
+    'LQD',     # Investment Grade Corporate Bonds
+]
+
+# Breite Sektoren & Internationale Indizes
 SECTORS_AND_INDICES = [
-    'XLF',     # US Financials ETF
-    'XLK',     # US Technology ETF
-    'XLE',     # US Energy ETF
-    'XBI',     # Biotech ETF (Zinssensibel)
-    'EEM',     # Emerging Markets ETF
-    '^GDAXI',  # DAX Index (Deutschland - Exportlastig)
-    '^N225',   # Nikkei 225 (Japan)
+    'XLF',     # Financials
+    'XLK',     # Technology
+    'XLE',     # Energy
+    'XBI',     # Biotech
+    'EEM',     # Emerging Markets
+    '^GDAXI',  # DAX Index
+    '^N225',   # Nikkei 225
 ]
 
-# System-relevante Einzelaktien (Fokussiert)
+# Sektor-Rotation (Offensiv vs. Defensiv)
+MORE_SECTORS = [
+    'XLU',     # Utilities (Defensiv)
+    'XLP',     # Consumer Staples (Defensiv)
+    'XLY',     # Consumer Discretionary (Offensiv/Zyklisch)
+    'XLV',     # Healthcare (Defensiv)
+]
+
+# Immobilien (Extrem zinssensibel)
+REAL_ESTATE = [
+    'VNQ',     # Vanguard Real Estate ETF
+]
+
+# Alternative Liquidität
+CRYPTO = [
+    'BTC-USD', # Bitcoin (Proxy für globale Überschussliquidität)
+]
+
+# System-relevante Einzelaktien
 TICKERS_US = ['AAPL', 'MSFT', 'NVDA', 'BRK-B', 'JPM']
 TICKERS_DE = ['SAP.DE', 'SIE.DE', 'BAS.DE']
 TICKERS_UK = ['SHEL.L', 'AZN.L', 'RIO.L']
@@ -63,14 +92,13 @@ def get_all_tickers():
     """Führt das gesamte Universum für die yfinance-Abfrage zusammen."""
     return list(set(
         [TARGET_ETF] + 
-        MACRO_INDICATORS + 
-        COMMODITIES + 
-        SECTORS_AND_INDICES + 
+        MACRO_INDICATORS + COMMODITIES + AGRI_COMMODITIES + 
+        CREDIT_RISK + SECTORS_AND_INDICES + MORE_SECTORS + 
+        REAL_ESTATE + CRYPTO + 
         TICKERS_US + TICKERS_DE + TICKERS_UK + TICKERS_JP
     ))
 
 # ==========================================
 # 4. LLM CONFIGURATION
 # ==========================================
-# Wird sicher als Umgebungsvariable über die GitHub Codespace Secrets geladen
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
