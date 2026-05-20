@@ -8,6 +8,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.feature_selection import SequentialFeatureSelector, SelectKBest, f_classif
 from google import genai
 from config import GEMINI_API_KEY
+from audit import generate_variable_audit_table  # <-- NEU: Import für das Audit-Skript
 
 def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
@@ -165,5 +166,19 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             f.write("\n  ```\n")
             
         print(f"Ergebnisse gespeichert unter: {md_path}")
+        
+        # === NEU: TRIGGER FÜR DAS VARIABLEN-AUDIT ===
+        try:
+            generate_variable_audit_table(
+                X_columns=X_scaled.columns, 
+                p_values=kbest.pvalues_, 
+                selected_features=selected_features, 
+                rejected_stage_2=rejected_stage_2, 
+                model_coefs=model.coef_,
+                timestamp=timestamp
+            )
+        except Exception as e:
+            print(f"Fehler bei der Generierung des Variablen-Audits: {e}")
+        # ============================================
         
     return model, X_optimal
