@@ -1,9 +1,16 @@
 # src/config.py
 import os
+from datetime import datetime, timedelta
+
+# --- Dynamische Zeitfenster-Berechnung ---
+# END_DATE ist dynamisch der heutige Tag
+END_DATE = datetime.today().strftime('%Y-%m-%d')
+
+# START_DATE liegt 10 Jahre zurück. 
+# Das gibt ausreichend Puffer für die Feature-Verschiebungen (z.B. 126 Tage Rolling Returns)
+START_DATE = (datetime.today() - timedelta(days=365 * 10)).strftime('%Y-%m-%d')
 
 TARGET_ETF = 'SPY'
-START_DATE = "2016-01-01"
-END_DATE = "2024-01-01"
 FORECAST_HORIZON_DAYS = 126  
 
 # Ökonomische Parameter (Annualisiert)
