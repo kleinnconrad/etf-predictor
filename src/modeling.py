@@ -6,7 +6,7 @@ import numpy as np
 import os
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_selection import SequentialFeatureSelector, SelectKBest, f_classif
-from sklearn.model_selection import TimeSeriesSplit  # <-- NEU: Zwingend für Zeitreihen!
+from sklearn.model_selection import TimeSeriesSplit
 from google import genai
 from config import GEMINI_API_KEY
 from audit import generate_variable_audit_table
@@ -58,6 +58,7 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60)
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, pre_filter_k=80, timestamp=None):
     print(f"Führe Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
+    # Stufe 1: Univariater Filter
     k_actual = min(pre_filter_k, X_scaled.shape[1])
     kbest = SelectKBest(score_func=f_classif, k=k_actual)
     kbest.fit(X_scaled, y)
@@ -66,28 +67,45 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     rejected_stage_1 = X_scaled.columns[~kbest.get_support()]
     X_stage_1 = X_scaled[features_stage_1]
     
-    # --- NEU: Chronologisch korrekter TimeSeriesSplit ---
-    # Wir machen 5 Splits und setzen die Gap exakt auf deinen Vorhersagehorizont
-    tscv = TimeSeriesSplit(n_splits=5, gap=horizon)
+    # --- Robuster TimeSeriesSplit ---
+    # Minimales Trainingsfenster auf 3 Jahre setzen (756 Tage), um 
+    # verschiedene Marktphasen abzudecken und den Klassen-Error zu vermeiden.
+    initial_train_size = 252 * 3 
     
+    if initial_train_size >= len(X_stage_1):
+        initial_train_size = len(X_stage_1) // 2
+        
+    test_size = (len(X_stage_1) - initial_train_size - (5 * horizon)) // 5
+    if test_size < 1:
+        test_size = 1
+
+    tscv = TimeSeriesSplit(
+        n_splits=5, 
+        gap=horizon,
+        max_train_size=None,
+        test_size=test_size
+    )
+    
+    # Stufe 2: Wrapper Methode (Sequentielle Selektion der finalen Features)
     log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000)
     sfs = SequentialFeatureSelector(
         log_reg_base, 
         n_features_to_select=final_features, 
         direction='forward', 
-        cv=tscv,        # <-- HIER IST DER FIX
+        cv=tscv, 
         n_jobs=-1
     )
     sfs.fit(X_stage_1, y)
-    # ----------------------------------------------------
     
     selected_features = features_stage_1[sfs.get_support()]
     rejected_stage_2 = features_stage_1[~sfs.get_support()]
     X_optimal = X_scaled[selected_features]
     
+    # Finales Modell trainieren
     model = LogisticRegression(solver='lbfgs', max_iter=1000)
     model.fit(X_optimal, y)
 
+    # --- PREDICT LOGIK (Für den aktuellen Tag) ---
     X_latest_optimal = latest_features_scaled[selected_features]
     prediction = model.predict(X_latest_optimal)[0]
     probabilities = model.predict_proba(X_latest_optimal)[0]
@@ -113,6 +131,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     print(f"Vorhersage: {pred_label}")
     print(f"Wahrscheinlichkeiten: Down={prob_down:.2%}, Flat={prob_flat:.2%}, Up={prob_up:.2%}\n")
 
+    # Wichtigkeit der Variablen berechnen
     importance = np.mean(np.abs(model.coef_), axis=0)
     coeff_df = pd.DataFrame({
         'Prädiktor': selected_features,
@@ -121,6 +140,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     
     table_string = coeff_df.to_string(index=False)
     
+    # Artefakte und LLM-Report generieren
     if timestamp:
         print("Hole ökonomische Interpretation vom LLM...")
         llm_analysis = get_llm_interpretation(table_string, target_etf)
@@ -173,6 +193,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             
         print(f"Ergebnisse gespeichert unter: {md_path}")
         
+        # === TRIGGER FÜR DAS VARIABLEN-AUDIT ===
         try:
             generate_variable_audit_table(
                 X_columns=X_scaled.columns, 
@@ -184,5 +205,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             )
         except Exception as e:
             print(f"Fehler bei der Generierung des Variablen-Audits: {e}")
+        # =======================================
         
     return model, X_optimal
