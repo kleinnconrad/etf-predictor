@@ -1,30 +1,76 @@
 # src/config.py
+
 import os
 from datetime import datetime, timedelta
 
-# --- Dynamische Zeitfenster-Berechnung ---
-# END_DATE ist dynamisch der heutige Tag
+# ==========================================
+# 1. DYNAMISCHE ZEITFENSTER
+# ==========================================
+# END_DATE ist immer der tagesaktuelle Lauf
 END_DATE = datetime.today().strftime('%Y-%m-%d')
 
-# START_DATE liegt 10 Jahre zurück. 
-# Das gibt ausreichend Puffer für die Feature-Verschiebungen (z.B. 126 Tage Rolling Returns)
+# START_DATE liegt exakt 10 Jahre zurück, um dem Modell genug 
+# Historie für das Training und die 126-Tage-Features zu geben.
 START_DATE = (datetime.today() - timedelta(days=365 * 10)).strftime('%Y-%m-%d')
 
+# ==========================================
+# 2. VORHERSAGE-ZIEL & ÖKONOMISCHE PARAMETER
+# ==========================================
 TARGET_ETF = 'SPY'
-FORECAST_HORIZON_DAYS = 126  
+FORECAST_HORIZON_DAYS = 126    # Prognose für 6 Monate in die Zukunft
 
-# Ökonomische Parameter (Annualisiert)
-ANNUAL_INFLATION_RATE = 0.025  # 2,5 %
-ANNUAL_MARGIN = 0.01           # 1 % (+/-) Korridor
+ANNUAL_INFLATION_RATE = 0.025  # 2,5 % Basis-Wachstum (Inflation) p.a.
+ANNUAL_MARGIN = 0.01           # 1,0 % Toleranz-Korridor (Up/Flat/Down)
 TRADING_DAYS_PER_YEAR = 252    
 
-TICKERS_US = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'BRK-B', 'LLY', 'V', 'JPM']
-TICKERS_DE = ['SAP.DE', 'SIE.DE', 'ALV.DE', 'DTE.DE', 'AIR.DE', 'VOW3.DE', 'MBG.DE', 'BMW.DE', 'BAS.DE', 'MUV2.DE']
-TICKERS_UK = ['SHEL.L', 'AZN.L', 'HSBA.L', 'ULVR.L', 'BP.L', 'GSK.L', 'REL.L', 'DGE.L', 'BATS.L', 'RIO.L']
-TICKERS_JP = ['7203.T', '6758.T', '8306.T', '9984.T', '6861.T', '9432.T', '8035.T', '9983.T', '4063.T', '8058.T']
+# ==========================================
+# 3. INVESTMENT UNIVERSUM (Features)
+# ==========================================
+
+# Globale Makro-Indikatoren (Zinsen, Volatilität, Währungen)
+MACRO_INDICATORS = [
+    '^TNX',    # US 10-Year Treasury Yield (Langfristige Zinsen)
+    '^IRX',    # 13-Week Treasury Bill (Kurzfristige Zinsen)
+    '^VIX',    # Volatility Index (Angst-Barometer)
+    'DX-Y.NYB',# US Dollar Index
+]
+
+# Rohstoffe (Inflations- und Konjunktur-Signale)
+COMMODITIES = [
+    'CL=F',    # Crude Oil (Konjunkturmotor)
+    'GC=F',    # Gold (Sicherer Hafen)
+    'HG=F',    # Kupfer (Frühindikator für Industrie)
+]
+
+# Breite Sektoren & Märkte
+SECTORS_AND_INDICES = [
+    'XLF',     # US Financials ETF
+    'XLK',     # US Technology ETF
+    'XLE',     # US Energy ETF
+    'XBI',     # Biotech ETF (Zinssensibel)
+    'EEM',     # Emerging Markets ETF
+    '^GDAXI',  # DAX Index (Deutschland - Exportlastig)
+    '^N225',   # Nikkei 225 (Japan)
+]
+
+# System-relevante Einzelaktien (Fokussiert)
+TICKERS_US = ['AAPL', 'MSFT', 'NVDA', 'BRK-B', 'JPM']
+TICKERS_DE = ['SAP.DE', 'SIE.DE', 'BAS.DE']
+TICKERS_UK = ['SHEL.L', 'AZN.L', 'RIO.L']
+TICKERS_JP = ['7203.T', '9984.T', '8035.T']
 
 def get_all_tickers():
-    return list(set([TARGET_ETF] + TICKERS_US + TICKERS_DE + TICKERS_UK + TICKERS_JP))
+    """Führt das gesamte Universum für die yfinance-Abfrage zusammen."""
+    return list(set(
+        [TARGET_ETF] + 
+        MACRO_INDICATORS + 
+        COMMODITIES + 
+        SECTORS_AND_INDICES + 
+        TICKERS_US + TICKERS_DE + TICKERS_UK + TICKERS_JP
+    ))
 
-# LLM Configuration (Loaded securely from GitHub Codespaces Environment)
+# ==========================================
+# 4. LLM CONFIGURATION
+# ==========================================
+# Wird sicher als Umgebungsvariable über die GitHub Codespace Secrets geladen
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
