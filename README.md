@@ -18,8 +18,7 @@ The model classifies returns based on macroeconomic assumptions scaled to the sp
 - **Baseline:** An assumed annual inflation rate (e.g., 2.5%).
 - **Margin:** A tolerance corridor (e.g., +/- 1.0% p.a.) around the baseline.
 - **Scaling:** Annualized values are linearly scaled to the forecast horizon (e.g., 126 days).
-- **Classification Logic:** 
-  - Future return > upper threshold: `Up` (1)
+- **Classification Logic:** - Future return > upper threshold: `Up` (1)
   - Future return < lower threshold: `Down` (-1)
   - Future return within corridor: `Flat` (0)
 
@@ -33,13 +32,24 @@ Out-of-sample evaluation is performed using a `TimeSeriesSplit`. The `gap` param
 
 ---
 
+## Automated Economic Interpretation (LLM)
+
+The pipeline integrates the Google Gemini API to provide a fundamental economic rationale for the statistically selected predictors. 
+
+Once the Sequential Feature Selector identifies the top variables, the resulting coefficient matrix is sent to the LLM. The model interprets the economic relationships (e.g., sector dependencies, inverse correlations) and appends a concise, quantitative analysis directly to the output report. 
+
+- **Robustness:** The API request is wrapped in an automatic retry mechanism to gracefully handle rate limits (Code 429) during repeated test runs.
+- **Security:** The API key is not hardcoded but dynamically loaded from the `GEMINI_API_KEY` environment variable via GitHub Secrets.
+
+---
+
 ## Configuration (config.py)
 
 Hyperparameters and economic assumptions are managed in `src/config.py`.
 
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
-| `TARGET_ETF` | `str` | Ticker symbol of the target ETF (e.g., `'ETFL01.DE'`). |
+| `TARGET_ETF` | `str` | Ticker symbol of the target ETF (e.g., `'SPY'`). |
 | `FORECAST_HORIZON_DAYS` | `int` | Forecast horizon in trading days (e.g., `126`). Defines the CV gap. |
 | `ANNUAL_INFLATION_RATE` | `float` | Assumed annual inflation rate (e.g., `0.025`). |
 | `ANNUAL_MARGIN` | `float` | Tolerance corridor around the baseline (e.g., `0.01`). |
@@ -71,3 +81,9 @@ The repository is configured for GitHub Codespaces.
 ```bash
 python src/main.py
 ```
+
+## Artifacts generated in the /output directory:
+
+1. confusion_matrix.png: Visual evaluation (In-Sample vs. Out-of-Sample).
+2. yahoo_data_YYYYMMDD_HHMMSS.csv: The cleaned historical dataset used for the run.
+3. feature_selection_YYYYMMDD_HHMMSS.md: The complete statistical documentation, including the predictor ranking, model intercepts, and the LLM-generated economic interpretation.
