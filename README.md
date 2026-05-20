@@ -72,7 +72,7 @@ Tickers missing more than 10% of the requested historical data (e.g., due to rec
 
 ## Execution (GitHub Codespaces)
 
-The repository is configured for GitHub Codespaces. 
+The repository is configured for GitHub Codespaces. The Codespace needs to be launched in the US region in order to make the Gemini API free tier work.
 
 1. Open the repository in a GitHub Codespace.
 2. Dependencies are automatically installed via `.devcontainer/devcontainer.json`.
