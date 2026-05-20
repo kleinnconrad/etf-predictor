@@ -14,6 +14,10 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     
     raw_data = yf.download(all_tickers, start=start_date, end=end_date, progress=False, auto_adjust=True)['Close']
     
+    # 1. Master-Kalender erzwingen: Alle Wochenenden/Feiertage löschen, an denen der SPY nicht gehandelt wurde
+    raw_data = raw_data.dropna(subset=[target_ticker])
+    
+    # 2. Erst jetzt den 90%-Filter auf alle anderen Variablen anwenden
     threshold = len(raw_data) * 0.9
     data = raw_data.dropna(axis=1, thresh=threshold).ffill().dropna()
     
