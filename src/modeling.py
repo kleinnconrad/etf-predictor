@@ -1,46 +1,44 @@
 # src/modeling.py
 
+import time
 import pandas as pd
 import numpy as np
 import os
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_selection import SequentialFeatureSelector, SelectKBest, f_classif
-
-# Import für das LLM
 from google import genai
-from config import GEMINI_API_KEY, TARGET_ETF
+from config import GEMINI_API_KEY
 
-def get_llm_interpretation(coeff_df_string):
-    """Sendet die Prädiktoren an Gemini und holt eine ökonomische Interpretation."""
+def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
         return "> *Kein API-Key hinterlegt. LLM-Analyse übersprungen.*"
     
-    try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        
-        prompt = f"""
-        Du bist ein quantitativer Finanzanalyst. Mein Machine Learning Modell zur Vorhersage 
-        des mittelfristigen Marktzustandes (Up, Down, Flat) für den {TARGET_ETF} hat die 
-        folgenden globalen Prädiktoren als am wichtigsten identifiziert:
-        
-        {coeff_df_string}
-        
-        Die Kürzel enden auf den Betrachtungszeitraum (z.B. _6M für 6-Monats-Momentum).
-        Schreibe eine fundierte, professionelle und sehr prägnante Interpretation (max. 3 Absätze), 
-        warum genau diese Sektoren oder Regionen in der aktuellen Marktphase als vorlaufende 
-        Indikatoren für den {TARGET_ETF} dienen könnten (z.B. globale Lieferketten, Zinsabhängigkeit, etc.).
-        Verwende kein unnötiges Geschwafel, sondern harte wirtschaftliche Logik.
-        """
-        
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
-        return response.text
-    except Exception as e:
-        return f"> *Fehler bei der LLM-Abfrage: {e}*"
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    prompt = f"""
+    Du bist ein quantitativer Finanzanalyst. Mein Modell zur Vorhersage 
+    des Marktzustandes (Up, Down, Flat) für den {target_etf} nutzt diese Prädiktoren:
+    {coeff_df_string}
+    Schreibe eine fundierte, professionelle Interpretation (max. 3 Absätze), 
+    warum diese Indikatoren vorlaufend wirken. Nutze harte wirtschaftliche Logik.
+    """
+    
+    for attempt in range(max_retries):
+        try:
+            # Wir nutzen das aktuelle 2.5 Modell
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+            )
+            return response.text
+        except Exception as e:
+            error_msg = str(e)
+            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+                if attempt < max_retries - 1:
+                    time.sleep(delay)
+                    continue
+            return f"> *Fehler bei der LLM-Abfrage: {e}*"
 
-def perform_feature_selection(X_scaled, y, final_features=8, timestamp=None):
+def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, timestamp=None):
     print("Führe Feature Selection durch...")
     
     kbest = SelectKBest(score_func=f_classif, k=40)
@@ -58,20 +56,36 @@ def perform_feature_selection(X_scaled, y, final_features=8, timestamp=None):
     model = LogisticRegression(solver='lbfgs', max_iter=1000)
     model.fit(X_optimal, y)
 
-    print("=== Ergebnis der Schrittweisen Variablenselektion (SFS) ===")
-    importance = np.mean(np.abs(model.coef_), axis=0)
+    # --- PREDICT LOGIK ---
+    X_latest_optimal = latest_features_scaled[selected_features]
+    prediction = model.predict(X_latest_optimal)[0]
+    probabilities = model.predict_proba(X_latest_optimal)[0]
     
+    # Mapping der Klassen (-1, 0, 1) auf Wahrscheinlichkeiten
+    prob_dict = dict(zip(model.classes_, probabilities))
+    prob_down = prob_dict.get(-1, 0)
+    prob_flat = prob_dict.get(0, 0)
+    prob_up = prob_dict.get(1, 0)
+    
+    class_mapping = {-1: "Down 🔴", 0: "Flat 🟡", 1: "Up 🟢"}
+    pred_label = class_mapping.get(prediction, "Unknown")
+    
+    print("\n=== Aktuelle Modell-Prognose ===")
+    print(f"Datum: {latest_features_scaled.index[0].strftime('%Y-%m-%d')}")
+    print(f"Vorhersage: {pred_label}")
+    print(f"Wahrscheinlichkeiten: Down={prob_down:.2%}, Flat={prob_flat:.2%}, Up={prob_up:.2%}\n")
+
+    importance = np.mean(np.abs(model.coef_), axis=0)
     coeff_df = pd.DataFrame({
         'Prädiktor': selected_features,
         'Einfluss (Mean Absolut)': importance
     }).sort_values(by='Einfluss (Mean Absolut)', ascending=False)
     
     table_string = coeff_df.to_string(index=False)
-    print(table_string, "\n")
     
     if timestamp:
         print("Hole ökonomische Interpretation vom LLM...")
-        llm_analysis = get_llm_interpretation(table_string)
+        llm_analysis = get_llm_interpretation(table_string, target_etf)
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(current_dir, '..'))
@@ -80,9 +94,17 @@ def perform_feature_selection(X_scaled, y, final_features=8, timestamp=None):
         
         md_path = os.path.join(output_dir, f"feature_selection_{timestamp}.md")
         with open(md_path, 'w', encoding='utf-8') as f:
-            f.write("# Ergebnisse der Variablenselektion & Modellparameter\n\n")
+            f.write("# 📈 ETF Predictor Pipeline-Report\n\n")
             f.write(f"- **Generiert am:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"- **Anzahl finaler Features:** {final_features}\n\n")
+            f.write(f"- **Target ETF:** {target_etf}\n")
+            f.write(f"- **Forecast Horizon:** {horizon} Trading Days\n\n")
+            
+            # PROMINENTE PLATZIERUNG DES PREDICTS
+            f.write("## 🚀 Aktuelle Marktprognose (Predict)\n\n")
+            f.write(f"Basierend auf den Schlusskursen vom **{latest_features_scaled.index[0].strftime('%Y-%m-%d')}** prognostiziert das Modell:\n\n")
+            f.write(f"> **Klasse:** {pred_label}\n>\n")
+            f.write(f"> **Wahrscheinlichkeiten:** Down: {prob_down:.2%} | Flat: {prob_flat:.2%} | Up: {prob_up:.2%}\n\n")
+            f.write("---\n\n")
             
             f.write("## Ausgewählte Prädiktoren (SFS)\n\n")
             f.write("| Prädiktor | Einfluss (Mean Absolut) |\n")
@@ -93,13 +115,13 @@ def perform_feature_selection(X_scaled, y, final_features=8, timestamp=None):
             f.write("\n## 🤖 KI-Interpretation der Prädiktoren\n\n")
             f.write(llm_analysis + "\n\n")
             
-            f.write("## Modellparameter (Multinomial Logistic Regression)\n\n")
-            f.write(f"- **Intercepts (Klassenordnung: Down [-1], Flat [0], Up [1]):**\n  `{model.intercept_.tolist()}`\n\n")
-            f.write("- **Koeffizienten-Matrix (Form: Klassen x Features):**\n")
+            f.write("## Mathematische Modellparameter\n\n")
+            f.write(f"- **Intercepts:** `{model.intercept_.tolist()}`\n\n")
+            f.write("- **Koeffizienten-Matrix:**\n")
             f.write("  ```text\n")
             f.write(str(model.coef_))
             f.write("\n  ```\n")
             
-        print(f"Ergebnisse, Parameter und LLM-Analyse gespeichert unter: {md_path}")
+        print(f"Ergebnisse gespeichert unter: {md_path}")
         
     return model, X_optimal

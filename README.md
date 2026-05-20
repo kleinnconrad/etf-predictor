@@ -10,8 +10,12 @@ The model classifies the future market state into three discrete classes: Up, Do
 
 The pipeline addresses common issues in financial time series modeling, such as multicollinearity and high dimensionality, using a multi-stage architecture.
 
-### 1. Feature Engineering
-Short- and medium-term momentum factors are used as predictors. Rolling returns for 1 month (21 days), 3 months (63 days), and 6 months (126 days) are calculated for each ticker in the specified universe.
+### 1. Feature Engineering & Variable Transformation
+The model does not process absolute stock prices. Instead, the raw data undergoes a strict three-stage transformation pipeline before being fed into the algorithm:
+
+- **Stage 1 (Raw Data):** The pipeline fetches adjusted closing prices for all specified tickers up to the current date.
+- **Stage 2 (Momentum Returns):** Absolute prices are converted into rolling percentage returns (`pct_change`) representing short- and medium-term momentum (1 month/21 days, 3 months/63 days, and 6 months/126 days).
+- **Stage 3 (Standardization):** Multinomial Logistic Regression requires normalized scales to prevent magnitude bias. A `StandardScaler` (fitted solely on the historical training data) transforms the rolling returns into Z-scores. The final input variables represent the distance of a specific return from its 10-year historical mean, measured in standard deviations.
 
 ### 2. Dynamic Target Classification
 The model classifies returns based on macroeconomic assumptions scaled to the specific forecast horizon.

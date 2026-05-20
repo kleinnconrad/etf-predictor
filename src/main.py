@@ -12,11 +12,10 @@ from evaluation import evaluate_and_plot
 
 def main():
     all_tickers = get_all_tickers()
-    
-    # Zentraler Zeitstempel für konsistente Dateinamen über alle Exporte hinweg
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    X_scaled, y = load_and_prepare_data(
+    # Wir entpacken nun drei Werte
+    X_scaled, y, latest_features_scaled = load_and_prepare_data(
         target_ticker=TARGET_ETF, 
         all_tickers=all_tickers, 
         start_date=START_DATE, 
@@ -28,9 +27,13 @@ def main():
         timestamp=timestamp
     )
     
+    # Wir übergeben die aktuellen Features an die Modellierung
     model, X_optimal = perform_feature_selection(
         X_scaled=X_scaled, 
         y=y, 
+        latest_features_scaled=latest_features_scaled,
+        target_etf=TARGET_ETF,
+        horizon=FORECAST_HORIZON_DAYS,
         final_features=8, 
         timestamp=timestamp
     )
