@@ -34,27 +34,22 @@ To maintain model stability, feature selection is performed in two steps:
 ### 4. Evaluation (TimeSeries Split)
 Out-of-sample evaluation is performed using a `TimeSeriesSplit`. The `gap` parameter is set exactly to the forecast horizon to prevent data leakage from overlapping return windows.
 
-### 5. Combating Base Rate Bias (Algorithmic Class Balancing)
+### 5. Combating Base Rate Bias (Logarithmic Class Smoothing)
 
-A significant challenge when predicting broad market indices like the S&P 500 is the inherent historical upward bias (the market rises more often than it falls). Consequently, the training dataset becomes highly imbalanced, heavily skewing towards the `Up` class.
+A significant challenge when predicting broad market indices like the S&P 500 is the inherent historical upward bias. Because the market rises much more often than it falls, the training dataset becomes highly imbalanced. If left unadjusted, a standard Logistic Regression will default to the historically "safe" bet (predicting `Up`), leading to dangerous insensitivity towards market crashes (`Down`) or sideways markets (`Flat`).
 
-If left unadjusted, a standard Logistic Regression using an argmax cut-off will become artificially overconfident. The algorithm learns that predicting `Up` yields the highest statistical probability of success, leading to a dangerous insensitivity towards predicting market crashes (`Down`) or sideways markets (`Flat`).
+While simple inverse-frequency balancing (like scikit-learn's default `class_weight='balanced'`) solves this, it operates on a strict linear scale. This often overcompensates—if a crash is 10 times rarer than a bull market, the algorithm penalizes itself 10 times harder for missing it, resulting in a paranoid model that issues constant false crash alarms.
 
-To counteract this, the pipeline enforces **Algorithmic Risk Sensitivity** by passing the `class_weight='balanced'` parameter to the Logistic Regression estimator during both the Sequential Feature Selection and the final model training. 
+To solve this, the pipeline calculates **Dynamic Custom Weights using Logarithmic Smoothing**. 
 
-**Mathematical Effect:** Instead of treating all errors equally, the algorithm dynamically adjusts the penalty weights inversely proportional to class frequencies in the input data. The model penalizes itself significantly harder for missing a rare event (e.g., a `Down` market) than for missing a common event. 
+**Mathematical Implementation:**
+The pipeline dynamically evaluates the dataset distribution before training and applies a logarithmic function to calculate the penalty weight ($W$) for each class:
 
-> **A Simplified Example:**
-> Imagine a training dataset of 1,000 trading days:
-> - 700 days are **Up** (70%)
-> - 200 days are **Down** (20%)
-> - 100 days are **Flat** (10%)
+$W_{class} = \log_{10}\left(\frac{N_{majority}}{N_{class}}\right) + 1.0$
+
+> **The Effect:** > This formula maintains a logical hierarchy of risk while dampening extreme statistical outliers. The majority class (e.g., `Up`) receives a baseline weight of 1.0. Rarer classes (like `Down` and `Flat`) receive mathematically scaled higher penalties (e.g., 1.5 to 2.5). 
 > 
-> In a standard model, making a prediction error costs "1 penalty point," regardless of the class. The model quickly realizes it can achieve a solid 70% accuracy simply by guessing `Up` every single day, completely ignoring the macroeconomic warning signs of a crash.
-> 
-> By enabling `class_weight='balanced'`, the algorithm changes the cost of a mistake based on rarity. Because `Up` days are 3.5 times more common than `Down` days (700 / 200), **missing a `Down` day now hurts the model 3.5 times more than missing an `Up` day.** Missing a `Flat` day hurts 7 times more. 
-
-This mechanism forces the model to actively hunt for macroeconomic warning signals. It can no longer "cheat" by blindly betting on the historical bull market and ensures it retains the confidence to predict market downturns.
+> By utilizing logarithmic smoothing instead of strict linear ratios, the model is forced to actively hunt for macroeconomic warning signals and respect the danger of a market downturn, all without succumbing to algorithmic paranoia.
 ---
 
 ## Automated Economic Interpretation (LLM)

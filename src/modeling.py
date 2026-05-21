@@ -4,12 +4,34 @@ import time
 import pandas as pd
 import numpy as np
 import os
+from collections import Counter
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_selection import SequentialFeatureSelector, SelectKBest, f_classif
 from sklearn.model_selection import TimeSeriesSplit
 from google import genai
 from config import GEMINI_API_KEY
 from audit import generate_variable_audit_table
+
+def calculate_smoothed_weights(y_data, smoothing='log'):
+    """
+    Algorithmically estimates custom class weights to combat base rate bias 
+    without causing algorithmic paranoia.
+    """
+    class_counts = Counter(y_data)
+    majority_count = max(class_counts.values())
+    
+    weights = {}
+    for cls, count in class_counts.items():
+        ratio = majority_count / count
+        
+        if smoothing == 'sqrt':
+            weights[cls] = round(float(np.sqrt(ratio)), 2)
+        elif smoothing == 'log':
+            weights[cls] = round(float(np.log10(ratio) + 1.0), 2)
+        else: # 'strict'
+            weights[cls] = round(float(ratio), 2)
+            
+    return weights
 
 def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
@@ -58,6 +80,10 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60)
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, pre_filter_k=80, timestamp=None):
     print(f"Führe Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
+    # --- DYNAMIC BALANCING (Logarithmic Smoothing) ---
+    custom_weights = calculate_smoothed_weights(y, smoothing='log')
+    print(f"Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
+    
     # Stufe 1: Univariater Filter
     k_actual = min(pre_filter_k, X_scaled.shape[1])
     kbest = SelectKBest(score_func=f_classif, k=k_actual)
@@ -84,9 +110,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         test_size=test_size
     )
     
-    # Stufe 2: Wrapper Methode (Sequentielle Selektion der finalen Features)
-    # NEU: class_weight='balanced' zwingt das Modell, seltene Events (Crashs) stärker zu gewichten
-    log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight='balanced')
+    # Stufe 2: Wrapper Methode mit dynamischen Custom Weights
+    log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight=custom_weights)
     sfs = SequentialFeatureSelector(
         log_reg_base, 
         n_features_to_select=final_features, 
@@ -100,9 +125,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     rejected_stage_2 = features_stage_1[~sfs.get_support()]
     X_optimal = X_scaled[selected_features]
     
-    # Finales Modell trainieren
-    # NEU: class_weight='balanced'
-    model = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight='balanced')
+    # Finales Modell trainieren (ebenfalls mit dynamischen Weights)
+    model = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight=custom_weights)
     model.fit(X_optimal, y)
 
     # --- PREDICT LOGIK (Für den aktuellen Tag) ---
@@ -152,25 +176,25 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         
         md_path = os.path.join(output_dir, f"feature_selection_{timestamp}.md")
         with open(md_path, 'w', encoding='utf-8') as f:
-            f.write("# 📈 ETF Predictor Pipeline-Report\n\n")
+            f.write("# ETF Predictor Pipeline-Report\n\n")
             f.write(f"- **Generiert am:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"- **Target ETF:** {target_etf}\n")
             f.write(f"- **Forecast Horizon:** {horizon} Trading Days\n\n")
             
-            f.write("## 🚀 Aktuelle Marktprognose (Predict)\n\n")
+            f.write("## Aktuelle Marktprognose (Predict)\n\n")
             f.write(f"Basierend auf den Schlusskursen vom **{predict_date_str}** prognostiziert das Modell:\n\n")
             f.write(f"> **Klasse:** {pred_label}\n>\n")
             f.write(f"> **Wahrscheinlichkeiten:** Down: {prob_down:.2%} | Flat: {prob_flat:.2%} | Up: {prob_up:.2%}\n\n")
             f.write("---\n\n")
             
-            f.write("## 🎯 Ausgewählte Prädiktoren (SFS)\n\n")
+            f.write("## Ausgewählte Prädiktoren (SFS)\n\n")
             f.write("| Prädiktor | Einfluss (Mean Absolut) |\n")
             f.write("| :--- | :--- |\n")
             for _, row in coeff_df.iterrows():
                 f.write(f"| {row['Prädiktor']} | {row['Einfluss (Mean Absolut)']:.6f} |\n")
             f.write("\n")
             
-            f.write("## 🗑️ Aussortierte Prädiktoren\n\n")
+            f.write("## Aussortierte Prädiktoren\n\n")
             f.write("### 1. In der Endauswahl verworfen (SFS Rejects)\n")
             f.write("> *Diese Variablen hatten anfängliche Relevanz, boten dem Modell in Kombination mit den Top-Prädiktoren aber keinen ausreichenden Informationszugewinn mehr (Multikollinearität).* \n\n")
             f.write(f"`{', '.join(rejected_stage_2.tolist())}`\n\n")
@@ -181,7 +205,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             f.write("\n</details>\n\n")
             f.write("---\n\n")
             
-            f.write("## 🤖 KI-Interpretation der Prädiktoren (Hedgefonds Analyst)\n\n")
+            f.write("## KI-Interpretation der Prädiktoren (Hedgefonds Analyst)\n\n")
             f.write(llm_analysis + "\n\n")
             
             f.write("## Mathematische Modellparameter\n\n")
