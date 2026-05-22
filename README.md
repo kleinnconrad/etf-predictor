@@ -131,11 +131,11 @@ python src/main.py
 
 ---
 
-## Cloud Deployment (Docker & Render)
+## Cloud Deployment (Docker & Railway)
 
-The project has evolved from a local research script into an interactive **Quant-on-Demand Engine** using Streamlit, fully containerized via Docker, and deployed as a serverless web service on Render.com.
+The project has evolved from a local research script into an interactive **Quant-on-Demand Engine** using Streamlit, fully containerized via Docker, and deployed as a serverless web service on **Railway.app**.
 
-This setup circumvents standard REST API timeout limits (the pipeline takes several minutes to fetch 10-year data arrays and perform SFS cross-validation) by maintaining an active WebSocket connection with the user interface.
+This setup circumvents standard REST API timeout limits (the pipeline takes several minutes to fetch 10-year data arrays and perform SFS cross-validation) by maintaining an active WebSocket connection with the user interface. Railway's burstable CPU architecture ensures high-speed execution during the intensive cross-validation phases.
 
 ### 1. Containerization (Dockerfile)
 
@@ -153,16 +153,16 @@ EXPOSE 8501
 CMD ["streamlit", "run", "src/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
 ```
 
-### 2. CI/CD Deployment on Render.com
+### 2. CI/CD Deployment on Railway.app
 
 The deployment process is fully automated via GitHub integration.
 
-1. **Service Creation:** In the Render dashboard, create a new Web Service and connect it to this GitHub repository.
-2. **Runtime Configuration:** Set the runtime explicitly to **Docker**. Render will automatically detect the `Dockerfile` at the root of the repository, build the image, and handle port binding.
-3. **Zero-Trust Secrets Management:** The Gemini API key must never be hardcoded or pushed to the repository. Inject it securely via Render's Environment Variables:
-   - Navigate to the **Environment** tab of the Web Service on Render.
-   - Add a Secret: `GEMINI_API_KEY` → `<YOUR_ACTUAL_API_KEY>`
+1. **Project Creation:** In the Railway dashboard, click **New Project** and select **Deploy from GitHub repo** to connect this repository.
+2. **Runtime Configuration:** Railway will automatically detect the `Dockerfile` at the root of the repository, build the image, and handle the containerization.
+3. **Environment Variables & Secrets:** The Gemini API key must never be hardcoded or pushed to the repository. Configure the required variables securely via Railway's **Variables** tab:
+   - `GEMINI_API_KEY` → `<YOUR_ACTUAL_API_KEY>`
+   - `PORT` → `8501` (Explicitly directs Railway's internal router to the exposed Streamlit port.)
 
-Once deployed, Render provides a permanent, TLS-encrypted URL (e.g., `https://etf-quant-engine.onrender.com`). The app runs 24/7, fetching fresh Yahoo Finance data and dynamically generating macro-forecasts and LLM reports upon user request.
+Once deployed, Railway generates a permanent, TLS-encrypted URL (e.g., `https://etf-predictor-production.up.railway.app`). The app runs reliably, fetching fresh Yahoo Finance data and dynamically generating macro-forecasts and LLM reports upon user request.
 
-[url-etf-predictor](https://etf-predictor.onrender.com)
+[railway-etf-predictor](etf-predictor-production.up.railway.app)
