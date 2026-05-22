@@ -165,4 +165,4 @@ The deployment process is fully automated via GitHub integration.
 
 Once deployed, Render provides a permanent, TLS-encrypted URL (e.g., `https://etf-quant-engine.onrender.com`). The app runs 24/7, fetching fresh Yahoo Finance data and dynamically generating macro-forecasts and LLM reports upon user request.
 
-[url](https://etf-predictor.onrender.com)
+[url-etf-predictor](https://etf-predictor.onrender.com)
