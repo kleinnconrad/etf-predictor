@@ -20,17 +20,16 @@ from config import (
 # 1. Seiten-Setup (muss immer ganz oben stehen)
 st.set_page_config(page_title="Quant Engine", page_icon="📈", layout="wide")
 
+# --- NEU: SESSION STATE INITIALISIERUNG (Das Gedächtnis) ---
+if "analysis_done" not in st.session_state:
+    st.session_state.analysis_done = False
+
 # 2. Custom CSS für ein professionelleres Design
 st.markdown("""
     <style>
-    /* Haupt-Hintergrund etwas abdunkeln (optional) */
     .block-container { padding-top: 2rem; }
-    
-    /* Große, moderne Überschriften */
     .hero-header { font-size: 3rem; font-weight: 800; margin-bottom: 0; padding-bottom: 0; color: #E8E8E8;}
     .hero-sub { font-size: 1.2rem; color: #888; margin-top: 0; padding-top: 0.5rem; margin-bottom: 2rem;}
-    
-    /* Start-Button pimpen */
     div.stButton > button:first-child {
         background-color: #2e66ff;
         color: white;
@@ -43,8 +42,6 @@ st.markdown("""
         background-color: #1a4bd1;
         border: 1px solid white;
     }
-    
-    /* Info-Boxen stylen */
     .metric-box {
         background-color: #1E1E1E;
         padding: 15px;
@@ -62,7 +59,7 @@ with st.sidebar:
     
     st.divider()
     
-    st.caption("Modell-Parameter (aus config.py)")
+    st.caption("⚙️ Modell-Parameter (aus config.py)")
     st.write(f"**Prognose-Horizont:** {FORECAST_HORIZON_DAYS} Tage")
     st.write(f"**Basis-Inflation:** {ANNUAL_INFLATION_RATE*100}%")
     st.write(f"**Toleranz-Marge:** ±{ANNUAL_MARGIN*100}%")
@@ -74,25 +71,12 @@ with st.sidebar:
 st.markdown('<p class="hero-header">Quant-on-Demand Engine</p>', unsafe_allow_html=True)
 st.markdown('<p class="hero-sub">Institutionelle Makro-Analyse & ML-Prognose</p>', unsafe_allow_html=True)
 
-# 5. Was passiert, bevor der Button gedrückt wird (Vorschau-Chart)
-if not run_button:
-    st.subheader(f"Aktueller Kursverlauf: {target_ticker}")
-    try:
-        # Lädt schnell die letzten 2 Jahre für ein hübsches Start-Bild
-        ticker_data = yf.download(target_ticker, period="2y", interval="1d", progress=False)
-        if not ticker_data.empty:
-            st.line_chart(ticker_data['Close'])
-        else:
-            st.info("Warte auf Eingabe...")
-    except Exception:
-        st.info("Klicke auf 'Analyse starten', um die Prognose zu berechnen.")
-
-# 6. Die Haupt-Pipeline
+# 5. Was passiert, wenn der Button gedrückt wird (Die Berechnung)
 if run_button:
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     
     with st.status("Quant-Pipeline läuft...", expanded=True) as status:
-        st.write("Lade globale Makro-Daten (150+ Ticker)...")
+        st.write("📡 Lade globale Makro-Daten (150+ Ticker)...")
         
         download_list = get_all_tickers()
         if target_ticker not in download_list:
@@ -120,35 +104,60 @@ if run_button:
             timestamp=timestamp
         )
         
+        # --- NEU: ERGEBNISSE IM GEDÄCHTNIS SPEICHERN ---
+        st.session_state.results = {
+            "model": model,
+            "X_opt": X_opt,
+            "latest": latest,
+            "timestamp": timestamp,
+            "prediction": model.predict(latest[X_opt.columns])[0]
+        }
+        st.session_state.analysis_done = True
+        
         status.update(label="Analyse erfolgreich abgeschlossen!", state="complete")
 
-    # 7. Ergebnisse in TABS präsentieren
-    tab1, tab2, tab3 = st.tabs(["🎯 Dashboard", "🤖 KI-Interpretation", "🔬 Modell-Diagnostik"])
+# 6. Darstellung steuern (Je nach Zustand des Gedächtnisses)
+if not st.session_state.analysis_done:
+    # Vorschau-Chart zeigen, solange noch nichts berechnet wurde
+    st.subheader(f"Aktueller Kursverlauf: {target_ticker}")
+    try:
+        ticker_data = yf.download(target_ticker, period="2y", interval="1d", progress=False)
+        if not ticker_data.empty:
+            st.line_chart(ticker_data['Close'])
+        else:
+            st.info("Warte auf Eingabe...")
+    except Exception:
+        st.info("Klicke auf 'Analyse starten', um die Prognose zu berechnen.")
+
+else:
+    # 7. Ergebnisse in TABS präsentieren (Daten aus dem Gedächtnis laden)
+    res = st.session_state.results
+    
+    tab1, tab2, tab3 = st.tabs(["Dashboard", "KI-Interpretation", "Modell-Diagnostik"])
     
     with tab1:
         st.subheader("Aktuelle Modell-Prognose")
-        prediction = model.predict(latest[X_opt.columns])[0]
         
         # Visuelle Hervorhebung je nach Vorhersage
-        if prediction == 1:
+        if res["prediction"] == 1:
             st.success("🟢 Haupt-Signal: UP (Bullenmarkt erwartet)")
-        elif prediction == -1:
+        elif res["prediction"] == -1:
             st.error("🔴 Haupt-Signal: DOWN (Bärenmarkt / Crash-Gefahr)")
         else:
             st.warning("🟡 Haupt-Signal: FLAT (Seitwärtsmarkt / Inflation schlägt Rendite)")
             
         st.divider()
-        st.markdown(f"**Die {len(X_opt.columns)} stärksten Makro-Treiber aktuell:**")
-        st.dataframe(X_opt.columns.tolist(), hide_index=True, use_container_width=True)
+        st.markdown(f"**Die {len(res['X_opt'].columns)} stärksten Makro-Treiber aktuell:**")
+        st.dataframe(res['X_opt'].columns.tolist(), hide_index=True, use_container_width=True)
 
     with tab2:
         st.subheader("Hedgefonds-Bericht")
-        md_path = f"output/feature_selection_{timestamp}.md"
+        md_path = f"output/feature_selection_{res['timestamp']}.md"
         if os.path.exists(md_path):
             with open(md_path, "r", encoding="utf-8") as f:
                 st.markdown(f.read())
         else:
-            st.info("Bericht wird generiert...")
+            st.info("Bericht wurde nicht gefunden oder noch nicht generiert.")
 
     with tab3:
         st.subheader("Out-of-Sample Trefferquote")
