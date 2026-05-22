@@ -5,21 +5,25 @@ import os
 
 from data_pipeline import load_and_prepare_data
 from modeling import perform_feature_selection
+
+# HIER IST DER FIX: Exakte Variablennamen aus deiner config.py
 from config import (
     START_DATE, 
     END_DATE, 
     FORECAST_HORIZON_DAYS, 
-    ANNUAL_INFLATION, 
+    ANNUAL_INFLATION_RATE, 
     ANNUAL_MARGIN, 
-    TRADING_DAYS_PER_YEAR
+    TRADING_DAYS_PER_YEAR,
+    TARGET_ETF
 )
 
 st.set_page_config(page_title="ETF Quant Predictor", layout="wide")
 
-st.title("📈 ETF Quant-on-Demand Engine")
+st.title("ETF Predictor")
 st.sidebar.header("Konfiguration")
 
-target_ticker = st.sidebar.text_input("Ziel-ETF Ticker", value="SPY")
+# Wir nutzen deinen TARGET_ETF aus der Config direkt als Standardwert!
+target_ticker = st.sidebar.text_input("Ziel-ETF Ticker", value=TARGET_ETF)
 run_button = st.sidebar.button("Analyse starten")
 
 if run_button:
@@ -27,21 +31,21 @@ if run_button:
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     
     with st.status("Pipeline läuft...", expanded=True) as status:
-        st.write("📡 Lade globale Makro-Daten...")
+        st.write("Lade globale Makro-Daten...")
         
-        # FIX: Alle benötigten Parameter aus der config.py übergeben
+        # Aufruf mit korrigiertem Variablennamen: ANNUAL_INFLATION_RATE
         X, y, latest = load_and_prepare_data(
             target_ticker=target_ticker,
             start_date=START_DATE,
             end_date=END_DATE,
             forecast_horizon=FORECAST_HORIZON_DAYS,
-            annual_inflation=ANNUAL_INFLATION,
+            annual_inflation=ANNUAL_INFLATION_RATE,
             annual_margin=ANNUAL_MARGIN,
             trading_days=TRADING_DAYS_PER_YEAR,
             timestamp=timestamp
         )
         
-        st.write("🧠 Trainiere Modell & Selektiere Features...")
+        st.write("Trainiere Modell & Selektiere Features...")
         model, X_opt = perform_feature_selection(
             X_scaled=X, 
             y=y, 
