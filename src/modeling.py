@@ -33,7 +33,7 @@ def calculate_smoothed_weights(y_data, smoothing='log'):
             
     return weights
 
-def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60):
+def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=10):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
         return "> *Kein API-Key hinterlegt. LLM-Analyse übersprungen.*"
     
@@ -69,10 +69,13 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=60)
             )
             return response.text
         except Exception as e:
-            error_msg = str(e)
-            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+            # Wir machen die Fehlermeldung sicherheitshalber groß (UPPERCASE), um Treffer zu garantieren
+            error_msg = str(e).upper()
+            
+            # --- DER FIX: Die Logik fängt jetzt auch die 503 UNAVAILABLE Spikes ab ---
+            if any(err in error_msg for err in ["429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE"]):
                 if attempt < max_retries - 1:
-                    print(f"API Rate Limit erreicht. Warte {delay} Sekunden...")
+                    print(f"Google Server-Spike (503/429). Versuch {attempt+1}/{max_retries} fehlgeschlagen. Warte {delay} Sekunden...")
                     time.sleep(delay)
                     continue
             return f"> *Fehler bei der LLM-Abfrage: {e}*"
@@ -232,3 +235,4 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         # =======================================
         
     return model, X_optimal
+    
