@@ -4,6 +4,23 @@ This repository contains a machine learning pipeline to predict the medium-term 
 
 The model classifies the future market state into three discrete classes: **Up**, **Down**, and **Flat**. The statistical pipeline is based on Multinomial Logistic Regression (One-vs-Rest).
 
+## Table of Contents
+
+- [Model Architecture](#model-architecture)
+  - [1. Feature Engineering & Variable Transformation](#1-feature-engineering--variable-transformation)
+  - [2. Dynamic Target Classification](#2-dynamic-target-classification)
+  - [3. Two-Stage Feature Selection](#3-two-stage-feature-selection)
+  - [4. Evaluation (TimeSeries Split)](#4-evaluation-timeseries-split)
+  - [5. Combating Base Rate Bias (Logarithmic Class Smoothing)](#5-combating-base-rate-bias-logarithmic-class-smoothing)
+- [Automated Economic Interpretation (LLM)](#automated-economic-interpretation-llm)
+- [Configuration (`config.py`)](#configuration-configpy)
+- [Data Source & 360° Macro Universe](#data-source--360-macro-universe)
+  - [The "Macro-Proxy" Approach (Combating Multicollinearity)](#the-macro-proxy-approach-combating-multicollinearity)
+- [Execution (Local & Development)](#execution-local--development)
+- [Cloud Deployment (Docker & Railway)](#cloud-deployment-docker--railway)
+  - [1. Containerization (Dockerfile)](#1-containerization-dockerfile)
+  - [2. CI/CD Deployment on Railway.app](#2-cicd-deployment-on-railwayapp)
+
 ---
 
 ## Model Architecture
