@@ -117,7 +117,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         n_features_to_select=final_features, 
         direction='forward', 
         cv=tscv, 
-        n_jobs=None
+        n_jobs=-1
     )
     sfs.fit(X_stage_1, y)
     
