@@ -1,8 +1,8 @@
 # ETF Predictor
 
-This repository contains a machine learning pipeline to predict the medium-term market development of a target ETF (default: SPY). 
+This repository contains a machine learning pipeline to predict the medium-term market development of a target ETF (default: SPY).
 
-The model classifies the future market state into three discrete classes: Up, Down, and Flat. The statistical pipeline is based on Multinomial Logistic Regression (One-vs-Rest).
+The model classifies the future market state into three discrete classes: **Up**, **Down**, and **Flat**. The statistical pipeline is based on Multinomial Logistic Regression (One-vs-Rest).
 
 ---
 
@@ -11,6 +11,7 @@ The model classifies the future market state into three discrete classes: Up, Do
 The pipeline addresses common issues in financial time series modeling, such as multicollinearity and high dimensionality, using a multi-stage architecture.
 
 ### 1. Feature Engineering & Variable Transformation
+
 The model does not process absolute stock prices. Instead, the raw data undergoes a strict three-stage transformation pipeline before being fed into the algorithm:
 
 - **Stage 1 (Raw Data):** The pipeline fetches adjusted closing prices for all specified tickers up to the current date.
@@ -18,52 +19,60 @@ The model does not process absolute stock prices. Instead, the raw data undergoe
 - **Stage 3 (Standardization):** Multinomial Logistic Regression requires normalized scales to prevent magnitude bias. A `StandardScaler` (fitted solely on the historical training data) transforms the rolling returns into Z-scores. The final input variables represent the distance of a specific return from its 10-year historical mean, measured in standard deviations.
 
 ### 2. Dynamic Target Classification
+
 The model classifies returns based on macroeconomic assumptions scaled to the specific forecast horizon.
+
 - **Baseline:** An assumed annual inflation rate (e.g., 2.5%).
 - **Margin:** A tolerance corridor (e.g., +/- 1.0% p.a.) around the baseline.
 - **Scaling:** Annualized values are linearly scaled to the forecast horizon (e.g., 126 days).
-- **Classification Logic:** - Future return > upper threshold: `Up` (1)
-  - Future return < lower threshold: `Down` (-1)
-  - Future return within corridor: `Flat` (0)
+- **Classification Logic:**
+  - Future return > upper threshold → `Up` (1)
+  - Future return < lower threshold → `Down` (-1)
+  - Future return within corridor → `Flat` (0)
 
 ### 3. Two-Stage Feature Selection
+
 To maintain model stability, feature selection is performed in two steps:
-- **Stage 1 (Filter):** A univariate ANOVA F-test (`SelectKBest`) reduces the feature space to the top 80 predictors. This dynamic pre-filter rapidly eliminates the ~20-30 weakest variables (pure noise), keeping the computational load for the wrapper stage manageable.
+
+- **Stage 1 (Filter):** A univariate ANOVA F-test (`SelectKBest`) reduces the feature space to the top 80 predictors. This dynamic pre-filter rapidly eliminates the ~20–30 weakest variables (pure noise), keeping the computational load for the wrapper stage manageable.
 - **Stage 2 (Wrapper):** Sequential Feature Selection (`SequentialFeatureSelector`) with 3-fold cross-validation identifies the optimal subset (default: 8 features) from the remaining 80 variables to combat multicollinearity.
 
 ### 4. Evaluation (TimeSeries Split)
+
 Out-of-sample evaluation is performed using a `TimeSeriesSplit`. The `gap` parameter is set exactly to the forecast horizon to prevent data leakage from overlapping return windows.
 
 ### 5. Combating Base Rate Bias (Logarithmic Class Smoothing)
 
 A significant challenge when predicting broad market indices like the S&P 500 is the inherent historical upward bias. Because the market rises much more often than it falls, the training dataset becomes highly imbalanced. If left unadjusted, a standard Logistic Regression will default to the historically "safe" bet (predicting `Up`), leading to dangerous insensitivity towards market crashes (`Down`) or sideways markets (`Flat`).
 
-While simple inverse-frequency balancing (like scikit-learn's default `class_weight='balanced'`) solves this, it operates on a strict linear scale. This often overcompensates—if a crash is 10 times rarer than a bull market, the algorithm penalizes itself 10 times harder for missing it, resulting in a paranoid model that issues constant false crash alarms.
+While simple inverse-frequency balancing (like scikit-learn's default `class_weight='balanced'`) solves this, it operates on a strict linear scale. This often overcompensates — if a crash is 10× rarer than a bull market, the algorithm penalizes itself 10× harder for missing it, resulting in a paranoid model that issues constant false crash alarms.
 
-To solve this, the pipeline calculates **Dynamic Custom Weights using Logarithmic Smoothing**. 
+To solve this, the pipeline calculates **Dynamic Custom Weights using Logarithmic Smoothing**.
 
 **Mathematical Implementation:**
+
 The pipeline dynamically evaluates the dataset distribution before training and applies a logarithmic function to calculate the penalty weight ($W$) for each class:
 
-$W_{class} = \log_{10}\left(\frac{N_{majority}}{N_{class}}\right) + 1.0$
+$$W_{class} = \log_{10}\left(\frac{N_{majority}}{N_{class}}\right) + 1.0$$
 
-> **The Effect:** > This formula maintains a logical hierarchy of risk while dampening extreme statistical outliers. The majority class (e.g., `Up`) receives a baseline weight of 1.0. Rarer classes (like `Down` and `Flat`) receive mathematically scaled higher penalties (e.g., 1.5 to 2.5). 
-> 
-> By utilizing logarithmic smoothing instead of strict linear ratios, the model is forced to actively hunt for macroeconomic warning signals and respect the danger of a market downturn, all without succumbing to algorithmic paranoia.
+> **The Effect:** This formula maintains a logical hierarchy of risk while dampening extreme statistical outliers. The majority class (e.g., `Up`) receives a baseline weight of 1.0. Rarer classes (like `Down` and `Flat`) receive mathematically scaled higher penalties (e.g., 1.5 to 2.5).
+>
+> By utilizing logarithmic smoothing instead of strict linear ratios, the model is forced to actively hunt for macroeconomic warning signals and respect the danger of a market downturn — all without succumbing to algorithmic paranoia.
+
 ---
 
 ## Automated Economic Interpretation (LLM)
 
-The pipeline integrates the Google Gemini API to provide a fundamental economic rationale for the statistically selected predictors. 
+The pipeline integrates the Google Gemini API to provide a fundamental economic rationale for the statistically selected predictors.
 
-Once the Sequential Feature Selector identifies the top variables, the resulting coefficient matrix is sent to the LLM. The model interprets the economic relationships (e.g., sector dependencies, inverse correlations) and appends a concise, quantitative analysis directly to the output report. 
+Once the Sequential Feature Selector identifies the top variables, the resulting coefficient matrix is sent to the LLM. The model interprets the economic relationships (e.g., sector dependencies, inverse correlations) and appends a concise, quantitative analysis directly to the output report.
 
-- **Robustness:** The API request is wrapped in an automatic retry mechanism to gracefully handle rate limits (Code 429) during repeated test runs.
+- **Robustness:** The API request is wrapped in an automatic retry mechanism to gracefully handle rate limits (HTTP 429) during repeated test runs.
 - **Security:** The API key is not hardcoded but dynamically loaded from the `GEMINI_API_KEY` environment variable via GitHub Secrets.
 
 ---
 
-## Configuration (config.py)
+## Configuration (`config.py`)
 
 Hyperparameters and economic assumptions are managed in `src/config.py`.
 
@@ -79,12 +88,13 @@ Hyperparameters and economic assumptions are managed in `src/config.py`.
 
 ## Data Source & 360° Macro Universe
 
-Historical price data (Adjusted Close) is fetched via the Yahoo Finance API (`yfinance`). 
+Historical price data (Adjusted Close) is fetched via the Yahoo Finance API (`yfinance`).
 
 ### The "Macro-Proxy" Approach (Combating Multicollinearity)
+
 A naive machine learning model trained on 100 random US equities will suffer heavily from **multicollinearity**. Since equities within the same market are highly correlated, the model receives redundant signals (e.g., if the SPY crashes, 95% of its constituents crash simultaneously). This illusion of data density leads to overfitting and poor out-of-sample forecasting.
 
-To solve this, the pipeline utilizes a **360-degree macro-proxy universe**. Instead of tracking highly correlated single stocks, the `config.py` curates ~50 distinct assets representing completely orthogonal economic forces. This ensures the Sequential Feature Selector (SFS) has access to independent, non-overlapping predictors:
+To solve this, the pipeline utilizes a **360-degree macro-proxy universe**. Instead of tracking highly correlated single stocks, `config.py` curates ~50 distinct assets representing fundamentally orthogonal economic forces:
 
 - **Cost of Capital & Fear:** Treasury Yields (`^TNX`, `^IRX`), the VIX (`^VIX`), and the US Dollar Index (`DX-Y.NYB`).
 - **Credit Risk & Systemic Stress:** High Yield Junk Bonds (`HYG`) measure corporate default risks, while long-term Treasuries (`TLT`) act as a proxy for institutional flight-to-safety.
@@ -94,24 +104,63 @@ To solve this, the pipeline utilizes a **360-degree macro-proxy universe**. Inst
 - **Global Systemic Equities:** A highly restricted, focused selection of heavyweight market drivers across the US, EU, UK, and Japan.
 
 **Resulting Feature Space:**
-The pipeline calculates the 1-month, 3-month, and 6-month momentum for each of these ~50 base assets. This generates a matrix of **~150 distinct macroeconomic variables**. Because the base assets are carefully selected to be fundamentally orthogonal, the algorithmic wrapper (SFS) can construct highly robust, non-correlated predictor sets (e.g., combining falling copper momentum with rising junk bond yields and a strong dollar) to forecast the target ETF.
+
+The pipeline calculates the 1-month, 3-month, and 6-month momentum for each of these ~50 base assets, generating a matrix of **~150 distinct macroeconomic variables**. Because the base assets are carefully selected to be fundamentally orthogonal, the SFS can construct highly robust, non-correlated predictor sets (e.g., combining falling copper momentum with rising junk bond yields and a strong dollar) to forecast the target ETF.
 
 ---
 
-## Execution (GitHub Codespaces)
+## Execution (Local & Development)
 
 The repository is configured for GitHub Codespaces.
 
 1. Open the repository in a GitHub Codespace.
 2. Dependencies are automatically installed via `.devcontainer/devcontainer.json`.
-3. Execute the pipeline via the integrated terminal:
+3. Run the pipeline via the integrated terminal:
 
 ```bash
 python src/main.py
 ```
 
-## Artifacts generated in the /output directory:
+**Generated Artifacts (`/output` directory):**
 
-1. confusion_matrix.png: Visual evaluation (In-Sample vs. Out-of-Sample).
-2. yahoo_data_YYYYMMDD_HHMMSS.csv: The cleaned historical dataset used for the run.
-3. feature_selection_YYYYMMDD_HHMMSS.md: The complete statistical documentation, including the predictor ranking, model intercepts, and the LLM-generated economic interpretation.
+| File | Description |
+| :--- | :--- |
+| `confusion_matrix.png` | Visual evaluation (In-Sample vs. Out-of-Sample). |
+| `yahoo_data_YYYYMMDD_HHMMSS.csv` | The cleaned historical dataset used for the run. |
+| `feature_selection_YYYYMMDD_HHMMSS.md` | Full statistical documentation including predictor ranking, model intercepts, and LLM-generated economic interpretation. |
+
+---
+
+## Cloud Deployment (Docker & Render)
+
+The project has evolved from a local research script into an interactive **Quant-on-Demand Engine** using Streamlit, fully containerized via Docker, and deployed as a serverless web service on Render.com.
+
+This setup circumvents standard REST API timeout limits (the pipeline takes several minutes to fetch 10-year data arrays and perform SFS cross-validation) by maintaining an active WebSocket connection with the user interface.
+
+### 1. Containerization (Dockerfile)
+
+The application is packaged into a lightweight, portable Docker image. The `Dockerfile` handles the installation of system dependencies, Python libraries (via `requirements.txt`), and exposes the default Streamlit port:
+
+```dockerfile
+# /Dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y build-essential curl && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8501
+CMD ["streamlit", "run", "src/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+```
+
+### 2. CI/CD Deployment on Render.com
+
+The deployment process is fully automated via GitHub integration.
+
+1. **Service Creation:** In the Render dashboard, create a new Web Service and connect it to this GitHub repository.
+2. **Runtime Configuration:** Set the runtime explicitly to **Docker**. Render will automatically detect the `Dockerfile` at the root of the repository, build the image, and handle port binding.
+3. **Zero-Trust Secrets Management:** The Gemini API key must never be hardcoded or pushed to the repository. Inject it securely via Render's Environment Variables:
+   - Navigate to the **Environment** tab of the Web Service on Render.
+   - Add a Secret: `GEMINI_API_KEY` → `<YOUR_ACTUAL_API_KEY>`
+
+Once deployed, Render provides a permanent, TLS-encrypted URL (e.g., `https://etf-quant-engine.onrender.com`). The app runs 24/7, fetching fresh Yahoo Finance data and dynamically generating macro-forecasts and LLM reports upon user request.
