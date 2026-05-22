@@ -165,4 +165,4 @@ The deployment process is fully automated via GitHub integration.
 
 Once deployed, Railway generates a permanent, TLS-encrypted URL (e.g., `https://etf-predictor-production.up.railway.app`). The app runs reliably, fetching fresh Yahoo Finance data and dynamically generating macro-forecasts and LLM reports upon user request.
 
-[railway-etf-predictor](etf-predictor-production.up.railway.app)
+[etf-predictor-web-service](https://etf-predictor-production.up.railway.app)
