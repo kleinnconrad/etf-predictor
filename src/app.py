@@ -5,8 +5,6 @@ import os
 
 from data_pipeline import load_and_prepare_data
 from modeling import perform_feature_selection
-
-# FIX: Wir importieren jetzt auch get_all_tickers aus der config
 from config import (
     START_DATE, 
     END_DATE, 
@@ -20,7 +18,7 @@ from config import (
 
 st.set_page_config(page_title="ETF Quant Predictor", layout="wide")
 
-st.title("ETF Predictor")
+st.title("ETF Quant-on-Demand Engine")
 st.sidebar.header("Konfiguration")
 
 target_ticker = st.sidebar.text_input("Ziel-ETF Ticker", value=TARGET_ETF)
@@ -32,10 +30,14 @@ if run_button:
     with st.status("Pipeline läuft...", expanded=True) as status:
         st.write("Lade globale Makro-Daten...")
         
-        # FIX: Wir rufen get_all_tickers() auf und übergeben die Liste
+        # HIER IST DER FIX: Wir zwingen die Download-Liste, den User-Eingabe-Ticker zu enthalten
+        download_list = get_all_tickers()
+        if target_ticker not in download_list:
+            download_list.append(target_ticker)
+            
         X, y, latest = load_and_prepare_data(
             target_ticker=target_ticker,
-            all_tickers=get_all_tickers(),
+            all_tickers=download_list,
             start_date=START_DATE,
             end_date=END_DATE,
             forecast_horizon=FORECAST_HORIZON_DAYS,
