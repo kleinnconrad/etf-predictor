@@ -133,13 +133,11 @@ python src/main.py
 
 ## Cloud Deployment (Docker & Railway)
 
-The project has evolved from a local research script into an interactive **Quant-on-Demand Engine** using Streamlit, fully containerized via Docker, and deployed as a serverless web service on **Railway.app**.
-
-This setup circumvents standard REST API timeout limits (the pipeline takes several minutes to fetch 10-year data arrays and perform SFS cross-validation) by maintaining an active WebSocket connection with the user interface. Railway's burstable CPU architecture ensures high-speed execution during the intensive cross-validation phases.
+The model is provisioned as a webservice using Streamlit, containerized with Docker, and deployed on **Railway.app**.
 
 ### 1. Containerization (Dockerfile)
 
-The application is packaged into a lightweight, portable Docker image. The `Dockerfile` handles the installation of system dependencies, Python libraries (via `requirements.txt`), and exposes the default Streamlit port:
+The application is packaged into a portable Docker image. The `Dockerfile` handles the installation of system dependencies and exposes the default Streamlit port:
 
 ```dockerfile
 # /Dockerfile
