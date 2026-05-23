@@ -140,6 +140,19 @@ else:
                 
             st.caption(f"Sensitivitaet fuer Down-Signal datengetrieben optimiert (KS-Cutoff: {res['ks_cutoff']:.2%})")
             
+            # --- NEU: Wahrscheinlichkeiten als Metrik-Kacheln ---
+            st.markdown("### Wahrscheinlichkeitsverteilung")
+            probs = res["probabilities"]
+            p_down = probs.get(-1, 0)
+            p_flat = probs.get(0, 0)
+            p_up = probs.get(1, 0)
+            
+            col_d, col_f, col_u = st.columns(3)
+            col_d.metric("Down (Crash)", f"{p_down:.1%}")
+            col_f.metric("Flat (Seitwaerts)", f"{p_flat:.1%}")
+            col_u.metric("Up (Bullenmarkt)", f"{p_up:.1%}")
+            # -----------------------------------------------------
+            
             st.divider()
             st.markdown("**Die staerksten Makro-Treiber aktuell:**")
             st.dataframe(res['X_optimal'].columns.tolist(), hide_index=True, use_container_width=True)

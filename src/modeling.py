@@ -227,9 +227,15 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     predict_date = latest_features_scaled.index[0]
     predict_date_str = predict_date.strftime('%Y-%m-%d') if isinstance(predict_date, pd.Timestamp) else str(predict_date)
     
+    prob_flat = prob_dict.get(0, 0)
+    prob_up = prob_dict.get(1, 0)
+
     print("\n" + "="*35)
-    print(f"Datum: {predict_date_str} | Vorhersage: {pred_label}")
-    print("="*35 + "\n")
+    print("=== Aktuelle Modell-Prognose ===")
+    print("="*35)
+    print(f"Datum: {predict_date_str}")
+    print(f"Vorhersage: {pred_label}")
+    print(f"Wahrscheinlichkeiten: Down={prob_down:.2%}, Flat={prob_flat:.2%}, Up={prob_up:.2%}\n")
 
     importance = np.mean(np.abs(model.coef_), axis=0)
     coeff_df = pd.DataFrame({
