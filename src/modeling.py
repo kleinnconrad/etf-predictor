@@ -16,24 +16,18 @@ from config import GEMINI_API_KEY
 from audit import generate_variable_audit_table
 
 def calculate_smoothed_weights(y_data, smoothing='log'):
-    """
-    Algorithmically estimates custom class weights to combat base rate bias 
-    without causing algorithmic paranoia.
-    """
     class_counts = Counter(y_data)
     majority_count = max(class_counts.values())
     
     weights = {}
     for cls, count in class_counts.items():
         ratio = majority_count / count
-        
         if smoothing == 'sqrt':
             weights[cls] = round(float(np.sqrt(ratio)), 2)
         elif smoothing == 'log':
             weights[cls] = round(float(np.log10(ratio) + 1.0), 2)
         else:
             weights[cls] = round(float(ratio), 2)
-            
     return weights
 
 def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=10):
@@ -80,14 +74,30 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=10)
                     continue
             return f"> *Fehler bei der LLM-Abfrage: {e}*"
 
+def apply_ks_logic(preds, probs, classes, cutoff):
+    """
+    Wendet den optimierten KS-Cutoff rueckwirkend auf historische Vorhersagen an.
+    """
+    adjusted_preds = preds.copy()
+    if -1 not in classes: return adjusted_preds
+    down_idx = list(classes).index(-1)
+    
+    for i in range(len(adjusted_preds)):
+        p_down = probs[i, down_idx]
+        if p_down >= cutoff:
+            adjusted_preds[i] = -1
+        elif adjusted_preds[i] == -1 and p_down < cutoff:
+            sub_probs = probs[i].copy()
+            sub_probs[down_idx] = -1.0 
+            adjusted_preds[i] = classes[np.argmax(sub_probs)]
+    return adjusted_preds
+
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, pre_filter_k=80, timestamp=None):
     print(f"Fuehre Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
-    # --- DYNAMIC BALANCING (Logarithmic Smoothing) ---
     custom_weights = calculate_smoothed_weights(y, smoothing='log')
     print(f"Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
     
-    # Stufe 1: Univariater Filter
     k_actual = min(pre_filter_k, X_scaled.shape[1])
     kbest = SelectKBest(score_func=f_classif, k=k_actual)
     kbest.fit(X_scaled, y)
@@ -96,7 +106,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     rejected_stage_1 = X_scaled.columns[~kbest.get_support()]
     X_stage_1 = X_scaled[features_stage_1]
     
-    # --- Robuster TimeSeriesSplit ---
     initial_train_size = 252 * 3 
     if initial_train_size >= len(X_stage_1):
         initial_train_size = len(X_stage_1) // 2
@@ -105,35 +114,20 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     if test_size < 1:
         test_size = 1
 
-    tscv = TimeSeriesSplit(
-        n_splits=5, 
-        gap=horizon,
-        max_train_size=None,
-        test_size=test_size
-    )
+    tscv = TimeSeriesSplit(n_splits=5, gap=horizon, max_train_size=None, test_size=test_size)
     
-    # Stufe 2: Wrapper Methode (n_jobs=None fuer Docker-Stabilitaet)
     log_reg_base = LogisticRegression(solver='lbfgs', max_iter=200, class_weight=custom_weights)
-    sfs = SequentialFeatureSelector(
-        log_reg_base, 
-        n_features_to_select=final_features, 
-        direction='forward', 
-        cv=tscv, 
-        n_jobs=None 
-    )
+    sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=tscv, n_jobs=None)
     sfs.fit(X_stage_1, y)
     
     selected_features = features_stage_1[sfs.get_support()]
     rejected_stage_2 = features_stage_1[~sfs.get_support()]
     X_optimal = X_scaled[selected_features]
     
-    # Finales Modell trainieren
     model = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight=custom_weights)
     model.fit(X_optimal, y)
 
-    # ==========================================
-    # Manuelle Out-of-Fold (OOF) Evaluierung
-    # ==========================================
+    # 1. Out-of-Fold (OOF) Evaluierung
     oof_preds = np.full(len(y), np.nan)
     oof_probs = np.full((len(y), len(model.classes_)), np.nan)
     
@@ -152,13 +146,31 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     oof_preds_valid = oof_preds[valid_indices]
     oof_probs_valid = oof_probs[valid_indices]
 
-    # --- Quality Gate ---
-    cv_accuracy = accuracy_score(y_valid, oof_preds_valid)
+    # 2. KS-Statistik (Cutoff Optimierung fuer Klasse -1)
+    y_down_true = (y_valid == -1).astype(int)
+    optimal_down_threshold = 0.33 
+    
+    if -1 in model.classes_:
+        down_idx = list(model.classes_).index(-1)
+        y_down_prob = oof_probs_valid[:, down_idx]
+        
+        fpr, tpr, thresholds = roc_curve(y_down_true, y_down_prob)
+        ks_stats = tpr - fpr
+        max_ks_idx = np.argmax(ks_stats)
+        optimal_down_threshold = thresholds[max_ks_idx]
+        print(f"KS-Statistik optimiert: Cutoff fuer -1 liegt bei {optimal_down_threshold:.2%}")
+
+    # 3. Synchronisation der Matrizen mit dem KS-Cutoff
+    oof_preds_ks = apply_ks_logic(oof_preds_valid, oof_probs_valid, model.classes_, optimal_down_threshold)
+    
+    train_probs = model.predict_proba(X_optimal)
+    train_preds = model.predict(X_optimal)
+    train_preds_ks = apply_ks_logic(train_preds, train_probs, model.classes_, optimal_down_threshold)
+
+    # 4. Quality Gate (basierend auf den realen, KS-optimierten Vorhersagen)
+    cv_accuracy = accuracy_score(y_valid, oof_preds_ks)
     is_valid_quality = cv_accuracy >= 0.35
 
-    # ==========================================
-    # Profi-Konfusionsmatrizen (Train vs. CV)
-    # ==========================================
     def plot_advanced_cm(y_true, y_pred, classes, title, accuracy):
         cm = confusion_matrix(y_true, y_pred, labels=classes)
         row_sums = cm.sum(axis=1)[:, np.newaxis]
@@ -183,30 +195,11 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         plt.close(fig)
         return fig
 
-    train_preds = model.predict(X_optimal)
-    train_accuracy = accuracy_score(y, train_preds)
+    train_accuracy = accuracy_score(y, train_preds_ks)
+    fig_cm_train = plot_advanced_cm(y, train_preds_ks, model.classes_, "1. In-Sample (Training)", train_accuracy)
+    fig_cm_cv = plot_advanced_cm(y_valid, oof_preds_ks, model.classes_, "2. Out-of-Sample (Cross-Validation)", cv_accuracy)
 
-    fig_cm_train = plot_advanced_cm(y, train_preds, model.classes_, "1. In-Sample (Training)", train_accuracy)
-    fig_cm_cv = plot_advanced_cm(y_valid, oof_preds_valid, model.classes_, "2. Out-of-Sample (Cross-Validation)", cv_accuracy)
-
-    # --- KS-Statistik (Cutoff Optimierung fuer Klasse -1) ---
-    y_down_true = (y_valid == -1).astype(int)
-    optimal_down_threshold = 0.33 
-    
-    if -1 in model.classes_:
-        down_idx = list(model.classes_).index(-1)
-        y_down_prob = oof_probs_valid[:, down_idx]
-        
-        fpr, tpr, thresholds = roc_curve(y_down_true, y_down_prob)
-        ks_stats = tpr - fpr
-        max_ks_idx = np.argmax(ks_stats)
-        
-        optimal_down_threshold = thresholds[max_ks_idx]
-        print(f"KS-Statistik optimiert: Cutoff fuer -1 liegt bei {optimal_down_threshold:.2%}")
-
-    # ==========================================
-    # --- PREDICT LOGIK ---
-    # ==========================================
+    # 5. Live Predict Logik
     X_latest_optimal = latest_features_scaled[selected_features]
     probabilities = model.predict_proba(X_latest_optimal)[0]
     
@@ -262,8 +255,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             f.write("## Aktuelle Marktprognose (Predict)\n\n")
             f.write(f"Basierend auf den Schlusskursen vom **{predict_date_str}** prognostiziert das Modell:\n\n")
             f.write(f"> **Klasse:** {pred_label}\n>\n")
-            prob_flat = prob_dict.get(0, 0)
-            prob_up = prob_dict.get(1, 0)
             f.write(f"> **Wahrscheinlichkeiten:** Down: {prob_down:.2%} | Flat: {prob_flat:.2%} | Up: {prob_up:.2%}\n\n")
             f.write("---\n\n")
             
