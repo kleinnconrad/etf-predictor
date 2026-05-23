@@ -12,6 +12,9 @@ The model classifies the future market state into three discrete classes: **Up**
   - [3. Two-Stage Feature Selection](#3-two-stage-feature-selection)
   - [4. Evaluation (TimeSeries Split)](#4-evaluation-timeseries-split)
   - [5. Combating Base Rate Bias (Logarithmic Class Smoothing)](#5-combating-base-rate-bias-logarithmic-class-smoothing)
+- [Risikomanagement & Modell-Safeguards](#6-risikomanagement--modell-safeguards)
+  - [1. Quality Gate (Out-of-Fold Evaluierung)](#1-quality-gate-out-of-fold-evaluierung)
+  - [2. KS-Statistik Cutoff-Optimierung (Crash-Sensor)](#2-ks-statistik-cutoff-optimierung-crash-sensor)
 - [Automated Economic Interpretation (LLM)](#automated-economic-interpretation-llm)
 - [Configuration (`config.py`)](#configuration-configpy)
 - [Data Source & 360° Macro Universe](#data-source--360-macro-universe)
@@ -76,6 +79,27 @@ $$W_{class} = \log_{10}\left(\frac{N_{majority}}{N_{class}}\right) + 1.0$$
 >
 > By utilizing logarithmic smoothing instead of strict linear ratios, the model is forced to actively hunt for macroeconomic warning signals and respect the danger of a market downturn — all without succumbing to algorithmic paranoia.
 
+## Risikomanagement & Modell-Safeguards
+
+Um Overfitting zu vermeiden und robuste Out-of-Sample-Prognosen zu gewährleisten, implementiert die Pipeline zwei kritische statistische Schutzmechanismen, bevor ein Live-Signal an den Nutzer ausgegeben wird.
+
+### 1. Quality Gate (Out-of-Fold Evaluierung)
+
+**Das Problem:** Algorithmen zur Feature-Selektion (wie SFS), die aus 150+ Variablen wählen, sind anfällig für *Overfitting*. Sie könnten Rauschen als Muster interpretieren, die historische Daten (In-Sample) perfekt erklären, bei neuen, unbekannten Daten (Out-of-Sample) aber völlig versagen.
+
+**Die Lösung:** Bevor das Modell eine finale Prognose für den aktuellen Tag abgeben darf, muss es eine strikte Out-of-Fold (OOF) Validierung bestehen.
+* **Mechanismus:** Über einen `TimeSeriesSplit` wird der Datensatz in chronologische Blöcke unterteilt. Das Modell wird iterativ auf vergangenen Blöcken trainiert und muss den jeweils nächsten, unbekannten Block vorhersagen – eine Simulation der echten Zukunft.
+* **Das Gate:** Die Out-of-Sample Trefferquote (Accuracy) wird aggregiert. Bei 3 Klassen (Up, Down, Flat) liegt reines Raten bei ca. 33,3 %. Das Quality Gate verlangt, dass die kreuzvalidierte Accuracy diesen Zufallswert signifikant übersteigt (Schwellenwert: > 35 %).
+* **Schutzwirkung:** Fällt das Modell durch diesen Test, bietet die aktuelle Variablen-Auswahl keinen mathematischen Vorteil (Edge) gegenüber einem Münzwurf. Die Pipeline blockiert die Prognose und warnt den Nutzer explizit vor fehlender statistischer Signifikanz.
+
+### 2. KS-Statistik Cutoff-Optimierung (Crash-Sensor)
+
+**Das Problem:** Eine Standard-Logistische-Regression wählt isoliert die Klasse mit der höchsten relativen Wahrscheinlichkeit. Markteinbrüche (`Down`) sind in der Historie jedoch seltene Extreme. Liegen die berechneten Wahrscheinlichkeiten beispielsweise bei *Down: 30 %, Flat: 34 %, Up: 36 %*, würde das Standard-Modell "Up" ausgeben und das signifikant erhöhte 30%-Crashrisiko ignorieren.
+
+**Die Lösung:** Die Pipeline kalibriert die Auslöseschwelle für Crash-Warnungen dynamisch anhand der **Kolmogorov-Smirnov (KS) Statistik**.
+* **Mechanismus:** Die KS-Statistik misst, wie gut das Modell zwischen tatsächlichen Markteinbrüchen und falschen Signalen unterscheiden kann. Sie berechnet die Richtig-Positiv-Rate (TPR - erkannte Crashs) und die Falsch-Positiv-Rate (FPR - Fehlalarme) über das gesamte Spektrum möglicher Wahrscheinlichkeits-Schwellenwerte.
+* **Optimierung:** Der Algorithmus sucht den exakten Wahrscheinlichkeits-Cutoff, bei dem der Abstand zwischen korrekten Treffern und Fehlalarmen ($TPR - FPR$) maximal ist.
+* **Schutzwirkung:** Dieser optimale Punkt wird zum neuen Auslöser für das `Down`-Signal. Liegt der KS-Cutoff beispielsweise bei 28 %, wird jede zukünftige Crash-Wahrscheinlichkeit $\ge 28 \%$ sofort als `Down`-Warnung klassifiziert. Das Modell fungiert somit als hochsensibles, datengestütztes Frühwarnsystem, ohne in dauerhafte algorithmische Panik zu verfallen.
 ---
 
 ## Automated Economic Interpretation (LLM)

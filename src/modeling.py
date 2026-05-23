@@ -4,10 +4,13 @@ import time
 import pandas as pd
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+import seaborn as sns
 from collections import Counter
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_selection import SequentialFeatureSelector, SelectKBest, f_classif
 from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import confusion_matrix, roc_curve, accuracy_score
 from google import genai
 from config import GEMINI_API_KEY
 from audit import generate_variable_audit_table
@@ -69,10 +72,7 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=10)
             )
             return response.text
         except Exception as e:
-            # Wir machen die Fehlermeldung sicherheitshalber groß (UPPERCASE), um Treffer zu garantieren
             error_msg = str(e).upper()
-            
-            # --- DER FIX: Die Logik fängt jetzt auch die 503 UNAVAILABLE Spikes ab ---
             if any(err in error_msg for err in ["429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE"]):
                 if attempt < max_retries - 1:
                     print(f"Google Server-Spike (503/429). Versuch {attempt+1}/{max_retries} fehlgeschlagen. Warte {delay} Sekunden...")
@@ -98,7 +98,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     
     # --- Robuster TimeSeriesSplit ---
     initial_train_size = 252 * 3 
-    
     if initial_train_size >= len(X_stage_1):
         initial_train_size = len(X_stage_1) // 2
         
@@ -113,14 +112,14 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         test_size=test_size
     )
     
-    # Stufe 2: Wrapper Methode mit dynamischen Custom Weights
-    log_reg_base = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight=custom_weights)
+    # Stufe 2: Wrapper Methode
+    log_reg_base = LogisticRegression(solver='lbfgs', max_iter=200, class_weight=custom_weights)
     sfs = SequentialFeatureSelector(
         log_reg_base, 
         n_features_to_select=final_features, 
         direction='forward', 
         cv=tscv, 
-        n_jobs=-1
+        n_jobs=-1 
     )
     sfs.fit(X_stage_1, y)
     
@@ -128,35 +127,86 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     rejected_stage_2 = features_stage_1[~sfs.get_support()]
     X_optimal = X_scaled[selected_features]
     
-    # Finales Modell trainieren (ebenfalls mit dynamischen Weights)
+    # Finales Modell trainieren
     model = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight=custom_weights)
     model.fit(X_optimal, y)
 
-    # --- PREDICT LOGIK (Für den aktuellen Tag) ---
+    # ==========================================
+    # Manuelle Out-of-Fold (OOF) Evaluierung für TimeSeriesSplit
+    # ==========================================
+    oof_preds = np.full(len(y), np.nan)
+    oof_probs = np.full((len(y), len(model.classes_)), np.nan)
+    
+    for train_idx, test_idx in tscv.split(X_optimal):
+        X_train, y_train = X_optimal.iloc[train_idx], y.iloc[train_idx]
+        X_test = X_optimal.iloc[test_idx]
+        
+        fold_model = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight=custom_weights)
+        fold_model.fit(X_train, y_train)
+        
+        oof_preds[test_idx] = fold_model.predict(X_test)
+        oof_probs[test_idx] = fold_model.predict_proba(X_test)
+        
+    valid_indices = ~np.isnan(oof_preds)
+    y_valid = y.iloc[valid_indices]
+    oof_preds_valid = oof_preds[valid_indices]
+    oof_probs_valid = oof_probs[valid_indices]
+
+    # --- Quality Gate ---
+    cv_accuracy = accuracy_score(y_valid, oof_preds_valid)
+    is_valid_quality = cv_accuracy >= 0.35
+
+    # --- In-Memory Confusion Matrix Figure ---
+    cm = confusion_matrix(y_valid, oof_preds_valid, labels=model.classes_)
+    fig_cm, ax = plt.subplots(figsize=(6, 4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=model.classes_, yticklabels=model.classes_, ax=ax)
+    ax.set_ylabel('True Label')
+    ax.set_xlabel('Predicted Label')
+    ax.set_title(f'OOF Confusion Matrix (Accuracy: {cv_accuracy:.2%})')
+    fig_cm.patch.set_alpha(0.0)
+    plt.close(fig_cm)
+
+    # --- KS-Statistik (Cutoff Optimierung für Klasse -1) ---
+    y_down_true = (y_valid == -1).astype(int)
+    optimal_down_threshold = 0.33 
+    
+    if -1 in model.classes_:
+        down_idx = list(model.classes_).index(-1)
+        y_down_prob = oof_probs_valid[:, down_idx]
+        
+        fpr, tpr, thresholds = roc_curve(y_down_true, y_down_prob)
+        ks_stats = tpr - fpr
+        max_ks_idx = np.argmax(ks_stats)
+        
+        optimal_down_threshold = thresholds[max_ks_idx]
+        print(f"KS-Statistik optimiert: Cutoff für -1 liegt bei {optimal_down_threshold:.2%}")
+
+    # ==========================================
+    # --- PREDICT LOGIK ---
+    # ==========================================
     X_latest_optimal = latest_features_scaled[selected_features]
-    prediction = model.predict(X_latest_optimal)[0]
     probabilities = model.predict_proba(X_latest_optimal)[0]
     
     prob_dict = dict(zip(model.classes_, probabilities))
     prob_down = prob_dict.get(-1, 0)
-    prob_flat = prob_dict.get(0, 0)
-    prob_up = prob_dict.get(1, 0)
     
+    if prob_down >= optimal_down_threshold:
+        prediction = -1
+    else:
+        prediction = model.predict(X_latest_optimal)[0]
+        if prediction == -1 and prob_down < optimal_down_threshold:
+            sub_probs = {k: v for k, v in prob_dict.items() if k != -1}
+            prediction = max(sub_probs, key=sub_probs.get)
+
     class_mapping = {-1: "Down 🔴", 0: "Flat 🟡", 1: "Up 🟢"}
     pred_label = class_mapping.get(prediction, "Unknown")
     
     predict_date = latest_features_scaled.index[0]
-    if isinstance(predict_date, pd.Timestamp):
-        predict_date_str = predict_date.strftime('%Y-%m-%d')
-    else:
-        predict_date_str = str(predict_date)
+    predict_date_str = predict_date.strftime('%Y-%m-%d') if isinstance(predict_date, pd.Timestamp) else str(predict_date)
     
     print("\n" + "="*35)
-    print("=== Aktuelle Modell-Prognose ===")
-    print("="*35)
-    print(f"Datum: {predict_date_str}")
-    print(f"Vorhersage: {pred_label}")
-    print(f"Wahrscheinlichkeiten: Down={prob_down:.2%}, Flat={prob_flat:.2%}, Up={prob_up:.2%}\n")
+    print(f"Datum: {predict_date_str} | Vorhersage: {pred_label}")
+    print("="*35 + "\n")
 
     # Wichtigkeit der Variablen berechnen
     importance = np.mean(np.abs(model.coef_), axis=0)
@@ -165,12 +215,10 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         'Einfluss (Mean Absolut)': importance
     }).sort_values(by='Einfluss (Mean Absolut)', ascending=False)
     
-    table_string = coeff_df.to_string(index=False)
-    
     # Artefakte und LLM-Report generieren
     if timestamp:
         print("Hole ökonomische Interpretation vom LLM...")
-        llm_analysis = get_llm_interpretation(table_string, target_etf)
+        llm_analysis = get_llm_interpretation(coeff_df.to_string(index=False), target_etf)
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(current_dir, '..'))
@@ -187,6 +235,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             f.write("## Aktuelle Marktprognose (Predict)\n\n")
             f.write(f"Basierend auf den Schlusskursen vom **{predict_date_str}** prognostiziert das Modell:\n\n")
             f.write(f"> **Klasse:** {pred_label}\n>\n")
+            prob_flat = prob_dict.get(0, 0)
+            prob_up = prob_dict.get(1, 0)
             f.write(f"> **Wahrscheinlichkeiten:** Down: {prob_down:.2%} | Flat: {prob_flat:.2%} | Up: {prob_up:.2%}\n\n")
             f.write("---\n\n")
             
@@ -199,11 +249,10 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             
             f.write("## Aussortierte Prädiktoren\n\n")
             f.write("### 1. In der Endauswahl verworfen (SFS Rejects)\n")
-            f.write("> *Diese Variablen hatten anfängliche Relevanz, boten dem Modell in Kombination mit den Top-Prädiktoren aber keinen ausreichenden Informationszugewinn mehr (Multikollinearität).* \n\n")
             f.write(f"`{', '.join(rejected_stage_2.tolist())}`\n\n")
             
             f.write("### 2. Im Basisfilter verworfen (ANOVA Rejects)\n")
-            f.write(f"<details>\n<summary>Klicken, um alle <b>{len(rejected_stage_1)}</b> in Stufe 1 aussortierten Variablen anzuzeigen (Geringste Signifikanz)</summary>\n\n")
+            f.write(f"<details>\n<summary>Klicken, um alle <b>{len(rejected_stage_1)}</b> in Stufe 1 aussortierten Variablen anzuzeigen</summary>\n\n")
             f.write(f"`{', '.join(rejected_stage_1.tolist())}`\n")
             f.write("\n</details>\n\n")
             f.write("---\n\n")
@@ -218,9 +267,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             f.write(str(model.coef_))
             f.write("\n  ```\n")
             
-        print(f"Ergebnisse gespeichert unter: {md_path}")
-        
-        # === TRIGGER FÜR DAS VARIABLEN-AUDIT ===
         try:
             generate_variable_audit_table(
                 X_columns=X_scaled.columns, 
@@ -231,8 +277,15 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
                 timestamp=timestamp
             )
         except Exception as e:
-            print(f"Fehler bei der Generierung des Variablen-Audits: {e}")
-        # =======================================
-        
-    return model, X_optimal
-    
+            print(f"Fehler bei Audit-Generierung: {e}")
+            
+    return {
+        "model": model,
+        "X_optimal": X_optimal,
+        "prediction": prediction,
+        "probabilities": prob_dict,
+        "cm_fig": fig_cm,
+        "cv_accuracy": cv_accuracy,
+        "is_valid_quality": is_valid_quality,
+        "ks_cutoff": optimal_down_threshold
+    }
