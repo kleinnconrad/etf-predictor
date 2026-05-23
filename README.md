@@ -183,3 +183,5 @@ Once deployed, Railway generates a permanent, TLS-encrypted URL (e.g., `https://
 [etf-predictor-web-service](https://etf-predictor-production.up.railway.app)
 
 [yahoo-finance-etf-overview](https://de.finance.yahoo.com/m%C3%A4rkte/etfs/top-performer/)
+
+Copyright (c) 2026 Conrad Kleinn. Alle Rechte vorbehalten. / All rights reserved.
