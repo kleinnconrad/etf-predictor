@@ -78,16 +78,16 @@ with st.sidebar:
     st.divider()
     run_button = st.button("Analyse starten", use_container_width=True)
 
-st.markdown('<p class="hero-header">Quant-on-Demand Engine</p>', unsafe_allow_html=True)
-st.markdown('<p class="hero-sub">Institutionelle Makro-Analyse und ML-Prognose</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-header">ETF Prediction Engine</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-sub">Multinomial logistic regression</p>', unsafe_allow_html=True)
 
 if run_button:
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     
-    with st.status("Initialisiere Quant-Pipeline...", expanded=True) as status:
+    with st.status("Initialisiere Modell...", expanded=True) as status:
         import time 
         
-        st.write("Verbinde mit globalen Boersen und lade Makro-Universum...")
+        st.write("Lade Daten...")
         download_list = get_all_tickers()
         if target_ticker not in download_list:
             download_list.append(target_ticker)
@@ -95,13 +95,13 @@ if run_button:
         X, y, latest = get_data(target_ticker, tuple(download_list), timestamp)
         time.sleep(0.5) 
         
-        st.write("Fuehre ANOVA-Filter aus (Dimensionsreduktion)...")
+        st.write("Fuehre ANOVA-Filter aus...")
         time.sleep(0.5)
         
-        st.write("Starte Sequential Feature Selection (Cross-Validation)...")
+        st.write("Starte Sequential Feature Selection...")
         results_dict = train_quant_model(X, y, latest, target_ticker, timestamp)
         
-        st.write("Optimiere KS-Cutoff und generiere Audit-Reports...")
+        st.write("KS-Cutoff und generiere Audit-Reports...")
         time.sleep(0.5)
         
         st.session_state.results = results_dict
@@ -158,7 +158,7 @@ else:
             st.dataframe(res['X_optimal'].columns.tolist(), hide_index=True, use_container_width=True)
 
         with tab2:
-            st.subheader("KI-Makrooekonomische Interpretation")
+            st.subheader("Google Gemini interpretation")
             md_path = f"output/feature_selection_{res['timestamp']}.md"
             if os.path.exists(md_path):
                 with open(md_path, "r", encoding="utf-8") as f:
@@ -167,7 +167,7 @@ else:
                 st.info("Bericht wird im Hintergrund generiert oder ist nicht verfuegbar.")
 
         with tab3:
-            st.subheader("Modell-Diagnostik und Evaluation")
+            st.subheader("Modell-Diagnostik")
             st.markdown("""
             Ein robustes Quant-Modell darf historische Daten nicht nur auswendig lernen (Overfitting). 
             Die wahre Qualitaet zeigt sich in der **Out-of-Sample** Matrix rechts.
@@ -182,7 +182,7 @@ else:
                     st.pyplot(res["cm_fig_cv"], use_container_width=True)
 
         with tab4:
-            st.subheader("Tiefgreifendes Variablen-Audit")
+            st.subheader("Variablen-Audit")
             st.markdown("Dokumentation der statistischen Signifikanz aller potenziellen Praediktoren.")
             
             audit_path = f"output/variable_audit_{res['timestamp']}.md"
