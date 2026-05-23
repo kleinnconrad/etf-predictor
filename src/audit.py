@@ -142,9 +142,9 @@ def generate_variable_audit_table(X_columns, p_values, selected_features, reject
     md_path = os.path.join(output_dir, f"variable_audit_{timestamp}.md")
     
     with open(md_path, 'w', encoding='utf-8') as f:
-        f.write("# 🔬 Umfassendes Variablen-Audit (Feature Encyclopedia)\n\n")
+        f.write("# Variablen-Audit (Feature Encyclopedia)\n\n")
         f.write(f"**Generiert am:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-        f.write("> Dieses Dokument protokolliert alle berechneten Momentum-Variablen der Pipeline. Es erklärt transparent, "
+        f.write("> Dieses Dokument protokolliert alle Variablen der Pipeline. Es erklärt transparent, "
                 "welche Variablen aktiv Vorhersagen treffen, welche aufgrund redundanter Informationen (Multikollinearität) "
                 "vom Algorithmus ignoriert wurden, und welche Variablen keine statistische Relevanz (ANOVA F-Test) aufwiesen.\n\n")
         

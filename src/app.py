@@ -126,7 +126,7 @@ else:
         st.warning("Das Modell liefert auf dem aktuellen Daten-Subset keine Edge, die statistisch signifikant ueber reinem Raten liegt.")
     
     else:
-        tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "KI-Hedgefonds", "Modell-Diagnostik", "Variablen-Audit"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Uebersicht", "LLM Analyse", "Modell-Diagnostik", "Variablen-Audit"])
         
         with tab1:
             st.subheader("Aktuelle Modell-Prognose")
