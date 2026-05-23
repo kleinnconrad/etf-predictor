@@ -10,9 +10,9 @@ This repository contains a machine learning pipeline to forecast the medium-term
   - [3. Two-Stage Feature Selection](#3-two-stage-feature-selection)
   - [4. Evaluation (TimeSeries Split)](#4-evaluation-timeseries-split)
   - [5. Combating Base Rate Bias (Logarithmic Class Smoothing)](#5-combating-base-rate-bias-logarithmic-class-smoothing)
-- [6. Risk Management & Model Safeguards](#6-risk-management--model-safeguards)
-  - [6.1 Quality Gate (Out-of-Fold Evaluation)](#61-quality-gate-out-of-fold-evaluation)
-  - [6.2 KS Statistic Cutoff Optimization (Crash Sensor)](#62-ks-statistic-cutoff-optimization-crash-sensor)
+- [Risk Management & Model Safeguards](#6-risk-management--model-safeguards)
+  - [1. Quality Gate (Out-of-Fold Evaluation)](#61-quality-gate-out-of-fold-evaluation)
+  - [2. KS Statistic Cutoff Optimization (Crash Sensor)](#62-ks-statistic-cutoff-optimization-crash-sensor)
 - [Automated Economic Interpretation (LLM)](#automated-economic-interpretation-llm)
 - [Configuration (`config.py`)](#configuration-configpy)
 - [Data Source & Macro Universe](#data-source--macro-universe)
@@ -49,15 +49,15 @@ $$W_{class} = \log_{10}\left(\frac{N_{majority}}{N_{class}}\right) + 1.0$$
 
 This function dampens statistical outliers in weighting. The majority class receives a base weight of 1.0. Underrepresented classes receive logarithmically scaled, higher penalty weights. This sensitizes the model to minority classes without generating excessive false alarms.
 
-## 6. Risk Management & Model Safeguards
+## Risk Management & Model Safeguards
 
 The pipeline integrates two statistical mechanisms to prevent overfitting and improve out-of-sample reliability.
 
-### 6.1 Quality Gate (Out-of-Fold Evaluation)
+### 1. Quality Gate (Out-of-Fold Evaluation)
 
 Feature selection algorithms risk overfitting in large variable spaces. A model might perfectly fit historical data but fail on unseen data. The model undergoes an Out-of-Fold (OOF) validation before issuing a final forecast. The dataset is chronologically partitioned via a `TimeSeriesSplit`. The prediction accuracy on unseen data blocks is aggregated. The quality gate requires a cross-validated accuracy exceeding 35%. Below this threshold, the model offers no significant advantage over random classification, and the forecast is blocked to prevent statistically insignificant signals.
 
-### 6.2 KS Statistic Cutoff Optimization (Crash Sensor)
+### 2. KS Statistic Cutoff Optimization (Crash Sensor)
 
 A logistic regression defaults to the class with the highest probability. This static threshold is inadequate for asymmetric risk profiles like market crashes. The pipeline dynamically optimizes the trigger threshold for the `Down` class using the Kolmogorov-Smirnov (KS) statistic. The KS statistic identifies the probability cutoff that maximizes the difference between the True Positive Rate (TPR) and the False Positive Rate (FPR). This data-driven cutoff becomes the new threshold for the `Down` signal. If the current crash probability exceeds this optimized cutoff, the model issues a `Down` warning, regardless of whether another class holds a higher absolute probability.
 
