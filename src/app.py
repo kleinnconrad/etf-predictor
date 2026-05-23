@@ -71,13 +71,13 @@ with st.sidebar:
     target_ticker = st.text_input("Ziel-ETF Ticker", value=TARGET_ETF).upper()
     st.divider()
     
-    st.caption("⚙️ Modell-Parameter")
+    st.caption("Modell-Parameter")
     st.write(f"**Prognose-Horizont:** {FORECAST_HORIZON_DAYS} Tage")
     st.write(f"**Basis-Inflation:** {ANNUAL_INFLATION_RATE*100}%")
     st.write(f"**Toleranz-Marge:** ±{ANNUAL_MARGIN*100}%")
     
     st.divider()
-    run_button = st.button("🚀 Analyse starten", use_container_width=True)
+    run_button = st.button("Analyse starten", use_container_width=True)
 
 st.markdown('<p class="hero-header">Quant-on-Demand Engine</p>', unsafe_allow_html=True)
 st.markdown('<p class="hero-sub">Institutionelle Makro-Analyse & ML-Prognose</p>', unsafe_allow_html=True)
@@ -85,7 +85,7 @@ st.markdown('<p class="hero-sub">Institutionelle Makro-Analyse & ML-Prognose</p>
 if run_button:
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     
-    with st.status("🧠 Quant-Pipeline läuft...", expanded=True) as status:
+    with st.status("Quant-Pipeline läuft...", expanded=True) as status:
         st.write("📡 Lade globale Makro-Daten...")
         
         download_list = get_all_tickers()
@@ -94,7 +94,7 @@ if run_button:
             
         X, y, latest = get_data(target_ticker, tuple(download_list), timestamp)
         
-        st.write("⚙️ Trainiere Modell & Optimiere Cutoffs...")
+        st.write("Trainiere Modell & Optimiere Cutoffs...")
         results_dict = train_quant_model(X, y, latest, target_ticker, timestamp)
         
         st.session_state.results = results_dict
@@ -116,12 +116,12 @@ else:
     
     # 1. Quality Gate
     if not res["is_valid_quality"]:
-        st.error(f"🛑 Quality Gate nicht bestanden. Die Cross-Validation Accuracy ({res['cv_accuracy']:.2%}) ist zu niedrig.")
+        st.error(f"Quality Gate nicht bestanden. Die Cross-Validation Accuracy ({res['cv_accuracy']:.2%}) ist zu niedrig.")
         st.warning("Das Modell liefert auf dem aktuellen Daten-Subset keine Edge, die statistisch signifikant über reinem Raten liegt.")
     
     else:
         # 2. Tabs rendern
-        tab1, tab2, tab3 = st.tabs(["🎯 Dashboard", "🤖 KI-Interpretation", "🔬 Modell-Diagnostik"])
+        tab1, tab2, tab3 = st.tabs(["Dashboard", "KI-Interpretation", "Modell-Diagnostik"])
         
         with tab1:
             st.subheader("Aktuelle Modell-Prognose")
