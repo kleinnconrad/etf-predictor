@@ -18,7 +18,7 @@ from config import (
     get_all_tickers
 )
 
-st.set_page_config(page_title="Quant Engine", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Quant Engine", layout="wide")
 
 @st.cache_data(ttl=43200, show_spinner=False)
 def get_data(target_ticker, download_list, _timestamp):
@@ -66,7 +66,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/combo-chart.png", width=60)
     st.title("Steuerung")
     target_ticker = st.text_input("Ziel-ETF Ticker", value=TARGET_ETF).upper()
     st.divider()
@@ -74,34 +73,42 @@ with st.sidebar:
     st.caption("Modell-Parameter")
     st.write(f"**Prognose-Horizont:** {FORECAST_HORIZON_DAYS} Tage")
     st.write(f"**Basis-Inflation:** {ANNUAL_INFLATION_RATE*100}%")
-    st.write(f"**Toleranz-Marge:** ±{ANNUAL_MARGIN*100}%")
+    st.write(f"**Toleranz-Marge:** +/-{ANNUAL_MARGIN*100}%")
     
     st.divider()
     run_button = st.button("Analyse starten", use_container_width=True)
 
 st.markdown('<p class="hero-header">Quant-on-Demand Engine</p>', unsafe_allow_html=True)
-st.markdown('<p class="hero-sub">Institutionelle Makro-Analyse & ML-Prognose</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-sub">Institutionelle Makro-Analyse und ML-Prognose</p>', unsafe_allow_html=True)
 
 if run_button:
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     
-    with st.status("Quant-Pipeline läuft...", expanded=True) as status:
-        st.write("📡 Lade globale Makro-Daten...")
+    with st.status("Initialisiere Quant-Pipeline...", expanded=True) as status:
+        import time 
         
+        st.write("Verbinde mit globalen Boersen und lade Makro-Universum...")
         download_list = get_all_tickers()
         if target_ticker not in download_list:
             download_list.append(target_ticker)
             
         X, y, latest = get_data(target_ticker, tuple(download_list), timestamp)
+        time.sleep(0.5) 
         
-        st.write("Trainiere Modell & Optimiere Cutoffs...")
+        st.write("Fuehre ANOVA-Filter aus (Dimensionsreduktion)...")
+        time.sleep(0.5)
+        
+        st.write("Starte Sequential Feature Selection (Cross-Validation)...")
         results_dict = train_quant_model(X, y, latest, target_ticker, timestamp)
+        
+        st.write("Optimiere KS-Cutoff und generiere Audit-Reports...")
+        time.sleep(0.5)
         
         st.session_state.results = results_dict
         st.session_state.results["timestamp"] = timestamp
         st.session_state.analysis_done = True
         
-        status.update(label="Analyse erfolgreich abgeschlossen!", state="complete")
+        status.update(label="Analyse erfolgreich abgeschlossen.", state="complete")
 
 if not st.session_state.analysis_done:
     st.subheader(f"Aktueller Kursverlauf: {target_ticker}")
@@ -114,45 +121,60 @@ if not st.session_state.analysis_done:
 else:
     res = st.session_state.results
     
-    # 1. Quality Gate
     if not res["is_valid_quality"]:
         st.error(f"Quality Gate nicht bestanden. Die Cross-Validation Accuracy ({res['cv_accuracy']:.2%}) ist zu niedrig.")
-        st.warning("Das Modell liefert auf dem aktuellen Daten-Subset keine Edge, die statistisch signifikant über reinem Raten liegt.")
+        st.warning("Das Modell liefert auf dem aktuellen Daten-Subset keine Edge, die statistisch signifikant ueber reinem Raten liegt.")
     
     else:
-        # 2. Tabs rendern
-        tab1, tab2, tab3 = st.tabs(["Dashboard", "KI-Interpretation", "Modell-Diagnostik"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "KI-Hedgefonds", "Modell-Diagnostik", "Variablen-Audit"])
         
         with tab1:
             st.subheader("Aktuelle Modell-Prognose")
             
             if res["prediction"] == 1:
-                st.success("🟢 Haupt-Signal: UP (Bullenmarkt erwartet)")
+                st.success("Haupt-Signal: UP (Bullenmarkt erwartet)")
             elif res["prediction"] == -1:
-                st.error("🔴 Haupt-Signal: DOWN (Bärenmarkt / Crash-Gefahr)")
+                st.error("Haupt-Signal: DOWN (Baerenmarkt / Crash-Gefahr)")
             else:
-                st.warning("🟡 Haupt-Signal: FLAT (Seitwärtsmarkt / Inflation schlägt Rendite)")
+                st.warning("Haupt-Signal: FLAT (Seitwaertsmarkt / Inflation schlaegt Rendite)")
                 
-            st.caption(f"Sensitivität für Down-Signal optimiert via KS-Statistik (Cutoff: {res['ks_cutoff']:.2%})")
+            st.caption(f"Sensitivitaet fuer Down-Signal datengetrieben optimiert (KS-Cutoff: {res['ks_cutoff']:.2%})")
             
             st.divider()
-            st.markdown(f"**Die stärksten Makro-Treiber aktuell:**")
+            st.markdown("**Die staerksten Makro-Treiber aktuell:**")
             st.dataframe(res['X_optimal'].columns.tolist(), hide_index=True, use_container_width=True)
 
         with tab2:
-            st.subheader("Hedgefonds-Bericht")
+            st.subheader("KI-Makrooekonomische Interpretation")
             md_path = f"output/feature_selection_{res['timestamp']}.md"
             if os.path.exists(md_path):
                 with open(md_path, "r", encoding="utf-8") as f:
                     st.markdown(f.read())
             else:
-                st.info("Bericht wird generiert oder ist noch nicht vorhanden.")
+                st.info("Bericht wird im Hintergrund generiert oder ist nicht verfuegbar.")
 
         with tab3:
-            st.subheader("Cross-Validation Diagnostik")
-            st.write(f"**Out-of-Sample Trefferquote (Accuracy):** {res['cv_accuracy']:.2%}")
+            st.subheader("Modell-Diagnostik und Evaluation")
+            st.markdown("""
+            Ein robustes Quant-Modell darf historische Daten nicht nur auswendig lernen (Overfitting). 
+            Die wahre Qualitaet zeigt sich in der **Out-of-Sample** Matrix rechts.
+            """)
             
-            if "cm_fig" in res:
-                st.pyplot(res["cm_fig"])
+            col1, col2 = st.columns(2)
+            with col1:
+                if "cm_fig_train" in res:
+                    st.pyplot(res["cm_fig_train"], use_container_width=True)
+            with col2:
+                if "cm_fig_cv" in res:
+                    st.pyplot(res["cm_fig_cv"], use_container_width=True)
+
+        with tab4:
+            st.subheader("Tiefgreifendes Variablen-Audit")
+            st.markdown("Dokumentation der statistischen Signifikanz aller potenziellen Praediktoren.")
+            
+            audit_path = f"output/variable_audit_{res['timestamp']}.md"
+            if os.path.exists(audit_path):
+                with open(audit_path, "r", encoding="utf-8") as f:
+                    st.markdown(f.read())
             else:
-                st.info("Keine Confusion Matrix gefunden.")
+                st.info("Das Variablen-Audit wurde fuer diesen Lauf nicht gefunden. Stelle sicher, dass `generate_variable_audit_table` erfolgreich durchlaeuft.")

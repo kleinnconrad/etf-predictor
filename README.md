@@ -88,3 +88,9 @@ The repository is configured for GitHub Codespaces. Dependencies install automat
 ## Cloud Deployment (Docker & Railway)
 
 The model is deployed as a web service using Streamlit, Docker, and Railway.app. The `Dockerfile` handles system dependencies and exposes port 8501. Deployment is automated via GitHub integration on Railway. The `GEMINI_API_KEY` and `PORT` environment variables must be configured securely in the Railway dashboard. The deployed application fetches live data and generates macroeconomic forecasts upon user request.
+
+[etf-predictor-web-service](https://etf-predictor-production.up.railway.app)
+
+[yahoo-finance-etf-overview](https://de.finance.yahoo.com/m%C3%A4rkte/etfs/top-performer/)
+
+Copyright (c) 2026 Conrad Kleinn. Alle Rechte vorbehalten. / All rights reserved.

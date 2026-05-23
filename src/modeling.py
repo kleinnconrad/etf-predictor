@@ -31,37 +31,37 @@ def calculate_smoothed_weights(y_data, smoothing='log'):
             weights[cls] = round(float(np.sqrt(ratio)), 2)
         elif smoothing == 'log':
             weights[cls] = round(float(np.log10(ratio) + 1.0), 2)
-        else: # 'strict'
+        else:
             weights[cls] = round(float(ratio), 2)
             
     return weights
 
 def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=10):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
-        return "> *Kein API-Key hinterlegt. LLM-Analyse übersprungen.*"
+        return "> *Kein API-Key hinterlegt. LLM-Analyse uebersprungen.*"
     
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     prompt = f"""
     Du bist ein quantitativer Macro-Analyst eines Hedgefonds. Mein Modell zur Vorhersage 
-    des Marktzustandes (Up, Down, Flat) für den {target_etf} (Horizont: 6 Monate) hat 
-    basierend auf einer Schrittweisen Variablenselektion folgende Prädiktoren ausgewählt 
-    und gewichtet (Kürzel am Ende zeigen das Momentum-Fenster, z.B. _6M):
+    des Marktzustandes (Up, Down, Flat) fuer den {target_etf} (Horizont: 6 Monate) hat 
+    basierend auf einer Schrittweisen Variablenselektion folgende Praediktoren ausgewaehlt 
+    und gewichtet (Kuerzel am Ende zeigen das Momentum-Fenster, z.B. _6M):
     
     {coeff_df_string}
     
-    Liefere eine hochgradig elaborierte, aber extrem präzise ökonomische Einschätzung, 
+    Liefere eine hochgradig elaborierte, aber extrem praezise oekonomische Einschaetzung, 
     warum dieses spezifische Set an Indikatoren aktuell vorlaufend wirkt. 
     
-    Regeln für die Ausgabe:
-    - Absolutes Verbot von Fließtexten und Geschwafel. 
-    - Antworte ausschließlich in knackigen Spiegelstrichen.
+    Regeln fuer die Ausgabe:
+    - Absolutes Verbot von Fliesstexten und Geschwafel. 
+    - Antworte ausschliesslich in knackigen Spiegelstrichen.
     - Nutze harte, institutionelle Logik (Korrelationen, Zinsstruktur, Sektor-Rotationen).
     
-    Strukturiere deine Antwort zwingend in diese drei kurzen Blöcke:
-    **1. Makroökonomisches Setup:** (Warum wurden Zinsen/Währungen/Rohstoffe gewählt oder ignoriert?)
-    **2. Sektor- & Marktdynamik:** (Was verraten die ausgewählten Equities/Sektoren über den Konjunkturzyklus?)
-    **3. Quant-Konklusion:** (Was ist das übergeordnete Narrativ für den {target_etf} in den nächsten 6 Monaten?)
+    Strukturiere deine Antwort zwingend in diese drei kurzen Bloecke:
+    **1. Makrooekonomisches Setup:** (Warum wurden Zinsen/Waehrungen/Rohstoffe gewaehlt oder ignoriert?)
+    **2. Sektor- & Marktdynamik:** (Was verraten die ausgewaehlten Equities/Sektoren ueber den Konjunkturzyklus?)
+    **3. Quant-Konklusion:** (Was ist das uebergeordnete Narrativ fuer den {target_etf} in den naechsten 6 Monaten?)
     """
     
     for attempt in range(max_retries):
@@ -81,7 +81,7 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=10)
             return f"> *Fehler bei der LLM-Abfrage: {e}*"
 
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, pre_filter_k=80, timestamp=None):
-    print(f"Führe Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
+    print(f"Fuehre Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
     # --- DYNAMIC BALANCING (Logarithmic Smoothing) ---
     custom_weights = calculate_smoothed_weights(y, smoothing='log')
@@ -112,14 +112,14 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         test_size=test_size
     )
     
-    # Stufe 2: Wrapper Methode
+    # Stufe 2: Wrapper Methode (n_jobs=None fuer Docker-Stabilitaet)
     log_reg_base = LogisticRegression(solver='lbfgs', max_iter=200, class_weight=custom_weights)
     sfs = SequentialFeatureSelector(
         log_reg_base, 
         n_features_to_select=final_features, 
         direction='forward', 
         cv=tscv, 
-        n_jobs=-1 
+        n_jobs=None 
     )
     sfs.fit(X_stage_1, y)
     
@@ -132,7 +132,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     model.fit(X_optimal, y)
 
     # ==========================================
-    # Manuelle Out-of-Fold (OOF) Evaluierung für TimeSeriesSplit
+    # Manuelle Out-of-Fold (OOF) Evaluierung
     # ==========================================
     oof_preds = np.full(len(y), np.nan)
     oof_probs = np.full((len(y), len(model.classes_)), np.nan)
@@ -156,17 +156,40 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     cv_accuracy = accuracy_score(y_valid, oof_preds_valid)
     is_valid_quality = cv_accuracy >= 0.35
 
-    # --- In-Memory Confusion Matrix Figure ---
-    cm = confusion_matrix(y_valid, oof_preds_valid, labels=model.classes_)
-    fig_cm, ax = plt.subplots(figsize=(6, 4))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=model.classes_, yticklabels=model.classes_, ax=ax)
-    ax.set_ylabel('True Label')
-    ax.set_xlabel('Predicted Label')
-    ax.set_title(f'OOF Confusion Matrix (Accuracy: {cv_accuracy:.2%})')
-    fig_cm.patch.set_alpha(0.0)
-    plt.close(fig_cm)
+    # ==========================================
+    # Profi-Konfusionsmatrizen (Train vs. CV)
+    # ==========================================
+    def plot_advanced_cm(y_true, y_pred, classes, title, accuracy):
+        cm = confusion_matrix(y_true, y_pred, labels=classes)
+        row_sums = cm.sum(axis=1)[:, np.newaxis]
+        cm_perc = np.divide(cm.astype('float'), row_sums, out=np.zeros_like(cm, dtype=float), where=row_sums!=0)
+        
+        labels = [f"{v1}\n({v2:.1%})" for v1, v2 in zip(cm.flatten(), cm_perc.flatten())]
+        labels = np.asarray(labels).reshape(cm.shape)
+        
+        fig, ax = plt.subplots(figsize=(6, 5), dpi=150)
+        sns.heatmap(cm, annot=labels, fmt='', cmap='Blues', 
+                    xticklabels=classes, yticklabels=classes, ax=ax, cbar=False,
+                    annot_kws={"size": 11, "weight": "bold"})
+        
+        ax.set_ylabel('Tatsaechlicher Markt (True)', fontsize=12, fontweight='bold', labelpad=10)
+        ax.set_xlabel('Modell-Prognose (Predicted)', fontsize=12, fontweight='bold', labelpad=10)
+        ax.set_title(f"{title}\nAccuracy: {accuracy:.2%}", fontsize=14, fontweight='bold', pad=15)
+        
+        plt.xticks(fontsize=11)
+        plt.yticks(fontsize=11, rotation=0)
+        fig.patch.set_alpha(0.0) 
+        plt.tight_layout()
+        plt.close(fig)
+        return fig
 
-    # --- KS-Statistik (Cutoff Optimierung für Klasse -1) ---
+    train_preds = model.predict(X_optimal)
+    train_accuracy = accuracy_score(y, train_preds)
+
+    fig_cm_train = plot_advanced_cm(y, train_preds, model.classes_, "1. In-Sample (Training)", train_accuracy)
+    fig_cm_cv = plot_advanced_cm(y_valid, oof_preds_valid, model.classes_, "2. Out-of-Sample (Cross-Validation)", cv_accuracy)
+
+    # --- KS-Statistik (Cutoff Optimierung fuer Klasse -1) ---
     y_down_true = (y_valid == -1).astype(int)
     optimal_down_threshold = 0.33 
     
@@ -179,7 +202,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         max_ks_idx = np.argmax(ks_stats)
         
         optimal_down_threshold = thresholds[max_ks_idx]
-        print(f"KS-Statistik optimiert: Cutoff für -1 liegt bei {optimal_down_threshold:.2%}")
+        print(f"KS-Statistik optimiert: Cutoff fuer -1 liegt bei {optimal_down_threshold:.2%}")
 
     # ==========================================
     # --- PREDICT LOGIK ---
@@ -198,7 +221,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             sub_probs = {k: v for k, v in prob_dict.items() if k != -1}
             prediction = max(sub_probs, key=sub_probs.get)
 
-    class_mapping = {-1: "Down 🔴", 0: "Flat 🟡", 1: "Up 🟢"}
+    class_mapping = {-1: "Down", 0: "Flat", 1: "Up"}
     pred_label = class_mapping.get(prediction, "Unknown")
     
     predict_date = latest_features_scaled.index[0]
@@ -208,16 +231,14 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     print(f"Datum: {predict_date_str} | Vorhersage: {pred_label}")
     print("="*35 + "\n")
 
-    # Wichtigkeit der Variablen berechnen
     importance = np.mean(np.abs(model.coef_), axis=0)
     coeff_df = pd.DataFrame({
-        'Prädiktor': selected_features,
+        'Praediktor': selected_features,
         'Einfluss (Mean Absolut)': importance
     }).sort_values(by='Einfluss (Mean Absolut)', ascending=False)
     
-    # Artefakte und LLM-Report generieren
     if timestamp:
-        print("Hole ökonomische Interpretation vom LLM...")
+        print("Hole oekonomische Interpretation vom LLM...")
         llm_analysis = get_llm_interpretation(coeff_df.to_string(index=False), target_etf)
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -240,14 +261,14 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             f.write(f"> **Wahrscheinlichkeiten:** Down: {prob_down:.2%} | Flat: {prob_flat:.2%} | Up: {prob_up:.2%}\n\n")
             f.write("---\n\n")
             
-            f.write("## Ausgewählte Prädiktoren (SFS)\n\n")
-            f.write("| Prädiktor | Einfluss (Mean Absolut) |\n")
+            f.write("## Ausgewaehlte Praediktoren (SFS)\n\n")
+            f.write("| Praediktor | Einfluss (Mean Absolut) |\n")
             f.write("| :--- | :--- |\n")
             for _, row in coeff_df.iterrows():
-                f.write(f"| {row['Prädiktor']} | {row['Einfluss (Mean Absolut)']:.6f} |\n")
+                f.write(f"| {row['Praediktor']} | {row['Einfluss (Mean Absolut)']:.6f} |\n")
             f.write("\n")
             
-            f.write("## Aussortierte Prädiktoren\n\n")
+            f.write("## Aussortierte Praediktoren\n\n")
             f.write("### 1. In der Endauswahl verworfen (SFS Rejects)\n")
             f.write(f"`{', '.join(rejected_stage_2.tolist())}`\n\n")
             
@@ -257,7 +278,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
             f.write("\n</details>\n\n")
             f.write("---\n\n")
             
-            f.write("## KI-Interpretation der Prädiktoren (Hedgefonds Analyst)\n\n")
+            f.write("## KI-Interpretation der Praediktoren (Hedgefonds Analyst)\n\n")
             f.write(llm_analysis + "\n\n")
             
             f.write("## Mathematische Modellparameter\n\n")
@@ -284,7 +305,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         "X_optimal": X_optimal,
         "prediction": prediction,
         "probabilities": prob_dict,
-        "cm_fig": fig_cm,
+        "cm_fig_train": fig_cm_train,
+        "cm_fig_cv": fig_cm_cv,
         "cv_accuracy": cv_accuracy,
         "is_valid_quality": is_valid_quality,
         "ks_cutoff": optimal_down_threshold
