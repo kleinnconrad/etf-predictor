@@ -1,6 +1,6 @@
 # ETF Predictor
 
-This repository contains a machine learning pipeline to forecast the medium-term market development of a target ETF (default: SPY). The model classifies the future market state into three discrete classes: **Up**, **Down**, and **Flat**. The statistical foundation is a Multinomial Logistic Regression (One-vs-Rest).
+This repository contains a machine learning pipeline to forecast the medium-term market development of a target ETF (default: SPY). The model classifies the future market state into three discrete classes: **Up**, **Down**, and **Flat**. The statistical foundation is a Multinomial Logistic Regression (Softmax).
 
 ## Table of Contents
 
