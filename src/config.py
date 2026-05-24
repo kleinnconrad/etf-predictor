@@ -88,6 +88,15 @@ TICKERS_DE = ['SAP.DE', 'SIE.DE', 'BAS.DE']
 TICKERS_UK = ['SHEL.L', 'AZN.L', 'RIO.L']
 TICKERS_JP = ['7203.T', '9984.T', '8035.T']
 
+# Federal reserve data
+FRED_INDICATORS = [
+    'CPIAUCSL',  # Consumer Price Index for All Urban Consumers (Inflation)
+    'PAYEMS',    # Total Nonfarm Payrolls (Employment)
+    'UNRATE',    # Unemployment Rate
+    'T10Y2Y',    # 10-Year Treasury Constant Maturity Minus 2-Year Treasury Constant Maturity
+    'WALCL'      # Assets: Total Assets: Total Assets (Less Eliminations from Consolidation)
+]
+
 def get_all_tickers():
     """Führt das gesamte Universum für die yfinance-Abfrage zusammen."""
     return list(set(

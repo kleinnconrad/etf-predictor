@@ -1,69 +1,90 @@
-# src/data_pipeline.py
-
-import yfinance as yf
 import pandas as pd
-import numpy as np
+import yfinance as yf
 from sklearn.preprocessing import StandardScaler
-import os
-import warnings
+from config import FRED_INDICATORS
 
-warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
+def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
+    """
+    Fetches macroeconomic data natively from FRED CSV endpoints 
+    and applies a uniform publication lag.
+    """
+    adjusted_start = pd.to_datetime(start_date) - pd.Timedelta(days=60)
+    series_list = []
+    
+    # Spoof a standard web browser to bypass FRED's anti-bot 403 Forbidden blocks
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    
+    for indicator in FRED_INDICATORS:
+        url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={indicator}"
+        
+        # Pass the headers via storage_options
+        df = pd.read_csv(
+            url, 
+            index_col='DATE', 
+            parse_dates=True, 
+            na_values='.',
+            storage_options=headers
+        )
+        
+        df = df.loc[adjusted_start:end_date]
+        series_list.append(df[indicator])
+        
+    fred_raw = pd.concat(series_list, axis=1)
+    fred_shifted = fred_raw.shift(freq=pd.Timedelta(days=lag_days))
+    
+    return fred_shifted
 
-def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, forecast_horizon, annual_inflation, annual_margin, trading_days, timestamp):
-    print(f"Lade Daten für {len(all_tickers)} Ticker...")
+def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, forecast_horizon=126, **kwargs):
+    """
+    Ingests, merges, and engineers features for the trading calendar.
+    """
+    # 1. Ingest Daily Equity Data
+    raw_yahoo = yf.download(all_tickers, start=start_date, end=end_date)['Close']
+    master_calendar = raw_yahoo.dropna(subset=[target_ticker])
     
-    raw_data = yf.download(all_tickers, start=start_date, end=end_date, progress=False, auto_adjust=True)['Close']
+    # 2. Ingest and Shift Monthly Macro Data
+    fred_shifted = fetch_and_lag_fred_data(start_date, end_date)
     
-    # 1. Master-Kalender erzwingen: Alle Wochenenden/Feiertage löschen, an denen der SPY nicht gehandelt wurde
-    raw_data = raw_data.dropna(subset=[target_ticker])
+    # 3. Merge and Impute
+    combined_data = master_calendar.join(fred_shifted, how='left')
+    imputed_data = combined_data.ffill().dropna(axis=1, how='all').dropna()
     
-    # 2. Erst jetzt den 90%-Filter auf alle anderen Variablen anwenden
-    threshold = len(raw_data) * 0.9
-    data = raw_data.dropna(axis=1, thresh=threshold).ffill().dropna()
+    # 4. Feature Engineering (Momentum)
+    windows = [21, 63, 126]
+    features = pd.DataFrame(index=imputed_data.index)
     
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, '..'))
-    output_dir = os.path.join(project_root, 'output')
-    os.makedirs(output_dir, exist_ok=True)
+    for col in imputed_data.columns:
+        for w in windows:
+            features[f'{col}_{w}M_ret'] = imputed_data[col].pct_change(w)
+            
+    # 5. Target Engineering
+    features['future_6M_return'] = imputed_data[target_ticker].shift(-forecast_horizon) / imputed_data[target_ticker] - 1
     
-    csv_path = os.path.join(output_dir, f"yahoo_data_{timestamp}.csv")
-    data.to_csv(csv_path)
-    print(f"Verwendete Yahoo-Daten gespeichert unter: {csv_path}")
-    
-    ret_1m = data.pct_change(21).add_suffix('_1M')
-    ret_3m = data.pct_change(63).add_suffix('_3M')
-    ret_6m = data.pct_change(126).add_suffix('_6M')
-    features = pd.concat([ret_1m, ret_3m, ret_6m], axis=1)
-    
-    # NEU: Wir sichern den allerletzten Tag für den Predict (noch ohne dropna)
-    latest_features_raw = features.iloc[-1:]
-    
-    future_return = data[target_ticker].pct_change(forecast_horizon).shift(-forecast_horizon)
-    time_fraction = forecast_horizon / trading_days
-    period_baseline = annual_inflation * time_fraction
-    period_margin = annual_margin * time_fraction
-    upper_threshold = period_baseline + period_margin
-    lower_threshold = period_baseline - period_margin
-
     def categorize_return(ret):
-        if pd.isna(ret): return np.nan
-        if ret > upper_threshold: return 1       
-        elif ret < lower_threshold: return -1    
-        else: return 0                           
-
-    target = future_return.apply(categorize_return)
+        if pd.isna(ret):
+            return None
+        elif ret > 0.0175:
+            return 1
+        elif ret < 0.0075:
+            return -1
+        else:
+            return 0
+            
+    features['target_class'] = features['future_6M_return'].apply(categorize_return)
     
-    df = features.join(target.rename('Target')).dropna()
-    X = df.drop(columns=['Target'])
-    y = df['Target']
-
+    # 6. Matrix Separation
+    features = features.dropna(subset=[f'{target_ticker}_126M_ret'])
+    
+    live_predict_row = features[features['target_class'].isna()].copy()
+    training_matrix = features.dropna(subset=['target_class']).copy()
+    
+    # 7. Z-Score Scaling
+    feature_cols = [c for c in training_matrix.columns if c not in ['target_class', 'future_6M_return']]
+    
     scaler = StandardScaler()
-    X_scaled = pd.DataFrame(scaler.fit_transform(X), columns=X.columns, index=X.index)
+    X_train_scaled = scaler.fit_transform(training_matrix[feature_cols])
+    y_train = training_matrix['target_class']
     
-    # NEU: Wir skalieren den heutigen Datenpunkt mit dem Trainings-Scaler
-    latest_features_scaled = pd.DataFrame(scaler.transform(latest_features_raw), columns=X.columns, index=latest_features_raw.index)
+    X_live_scaled = scaler.transform(live_predict_row[feature_cols])
     
-    print(f"Daten vorbereitet. Skalierte Feature-Matrix: {X_scaled.shape}")
-    print(f"Aktuellster Datenpunkt für Prognose isoliert: {latest_features_scaled.index[0].strftime('%Y-%m-%d')}\n")
-    
-    return X_scaled, y, latest_features_scaled
+    return X_train_scaled, y_train, X_live_scaled
