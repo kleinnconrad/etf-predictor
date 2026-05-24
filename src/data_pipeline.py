@@ -1,13 +1,17 @@
+# src/data_pipeline.py
+
 import pandas as pd
 import yfinance as yf
 from sklearn.preprocessing import StandardScaler
 from config import FRED_INDICATORS
+from datetime import datetime
 
 def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     """
     Fetches macroeconomic data natively from FRED CSV endpoints 
     and applies a uniform publication lag.
     """
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating FRED macro data download for {len(FRED_INDICATORS)} indicators...")
     adjusted_start = pd.to_datetime(start_date) - pd.Timedelta(days=60)
     series_list = []
     
@@ -32,24 +36,31 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     fred_raw = pd.concat(series_list, axis=1)
     fred_shifted = fred_raw.shift(freq=pd.Timedelta(days=lag_days))
     
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: FRED data download complete.")
     return fred_shifted
 
 def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, forecast_horizon=126, **kwargs):
     """
     Ingests, merges, and engineers features for the trading calendar.
     """
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating Yahoo Finance download...")
     # 1. Ingest Daily Equity Data
     raw_yahoo = yf.download(all_tickers, start=start_date, end=end_date)['Close']
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Yahoo Finance download complete.")
+    
     master_calendar = raw_yahoo.dropna(subset=[target_ticker])
     
     # 2. Ingest and Shift Monthly Macro Data
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calling FRED data fetch...")
     fred_shifted = fetch_and_lag_fred_data(start_date, end_date)
     
     # 3. Merge and Impute
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Merging matrices and forward-filling...")
     combined_data = master_calendar.join(fred_shifted, how='left')
     imputed_data = combined_data.ffill().dropna(axis=1, how='all').dropna()
     
     # 4. Feature Engineering (Momentum)
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calculating rolling momentum (Feature Engineering)...")
     windows = [21, 63, 126]
     features = pd.DataFrame(index=imputed_data.index)
     
@@ -73,12 +84,14 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     features['target_class'] = features['future_6M_return'].apply(categorize_return)
     
     # 6. Matrix Separation
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Separating matrices...")
     features = features.dropna(subset=[f'{target_ticker}_126M_ret'])
     
     live_predict_row = features[features['target_class'].isna()].copy()
     training_matrix = features.dropna(subset=['target_class']).copy()
     
     # 7. Z-Score Scaling
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Scaling features...")
     feature_cols = [c for c in training_matrix.columns if c not in ['target_class', 'future_6M_return']]
     
     scaler = StandardScaler()
@@ -87,4 +100,5 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     
     X_live_scaled = scaler.transform(live_predict_row[feature_cols])
     
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Data preparation complete.")
     return X_train_scaled, y_train, X_live_scaled

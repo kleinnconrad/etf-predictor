@@ -10,10 +10,14 @@ from data_pipeline import load_and_prepare_data
 from modeling import perform_feature_selection
 
 def main():
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] PIPELINE START")
+    
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] INITIALIZING: Fetching ticker universe...")
     all_tickers = get_all_tickers()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # 1. Daten laden und vorbereiten
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] CALLING: load_and_prepare_data")
     X_scaled, y, latest_features_scaled = load_and_prepare_data(
         target_ticker=TARGET_ETF, 
         all_tickers=all_tickers, 
@@ -25,9 +29,11 @@ def main():
         trading_days=TRADING_DAYS_PER_YEAR,
         timestamp=timestamp
     )
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] RETURNED: load_and_prepare_data. Matrix shape: X={X_scaled.shape}, y={y.shape}")
     
     # 2. Modell trainieren & KS-Statistik optimieren
     # Wir fangen das gesamte Dictionary ab!
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] CALLING: perform_feature_selection")
     results_dict = perform_feature_selection(
         X_scaled=X_scaled, 
         y=y, 
@@ -37,6 +43,7 @@ def main():
         final_features=8, 
         timestamp=timestamp
     )
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] RETURNED: perform_feature_selection")
     
     # 3. Lokale Konsolen-Ausgabe der neuen Metriken
     print("\n" + "="*40)

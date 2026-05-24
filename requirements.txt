@@ -6,3 +6,4 @@ matplotlib
 seaborn
 google-genai
 streamlit
+fredapi
