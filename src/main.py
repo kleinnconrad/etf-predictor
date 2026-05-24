@@ -57,4 +57,17 @@ def main():
         print("\nWARNUNG: Quality Gate nicht bestanden! Prognose ist statistisch nicht signifikant.")
 
 if __name__ == "__main__":
+    import os
+    
+    # 1. Check for the new FRED API Key
+    if not os.getenv("FRED_API_KEY"):
+        raise EnvironmentError(
+            "CRITICAL ERROR: FRED_API_KEY not found in environment. "
+            "Please add it to your Codespace Secrets."
+        )
+        
+    # 2. Check for the Gemini API Key (Warning only)
+    if not os.getenv("GEMINI_API_KEY"):
+        print("WARNING: GEMINI_API_KEY not found in environment. Economic interpretation will fail if triggered.")
+        
     main()
