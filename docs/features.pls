@@ -1,6 +1,6 @@
 DO $$
 DECLARE
-    -- 1. RECORD VARIABLES: These hold the entire row (all 38 tickers) at specific points in time
+    -- 1. RECORD VARIABLES: These hold the entire row (all 38 equity tickers + 5 FRED indicators)
     v_today RECORD;
     v_past_1m RECORD;   -- The market state 21 days ago
     v_past_3m RECORD;   -- The market state 63 days ago
@@ -17,7 +17,7 @@ BEGIN
     FOR v_today IN (
         SELECT 
             date, spy_price, 
-            tnx_price, irx_price, vix_price, dxy_price,               -- Macro
+            tnx_price, irx_price, vix_price, dxy_price,               -- Macro Equities
             cl_price, gc_price, hg_price,                             -- Metals & Energy
             zc_price, zw_price, le_price,                             -- Agriculture
             hyg_price, tlt_price, lqd_price,                          -- Credit Risk
@@ -28,8 +28,12 @@ BEGIN
             aapl_price, msft_price, nvda_price, brkb_price, jpm_price,-- US Equities
             sap_price, sie_price, bas_price,                          -- DE Equities
             shel_price, azn_price, rio_price,                         -- UK Equities
-            t7203_price, t9984_price, t8035_price                     -- JP Equities
-        FROM imputed_yahoo_data 
+            t7203_price, t9984_price, t8035_price,                    -- JP Equities
+            
+            -- NEW: FRED MACROECONOMIC INDICATORS
+            cpiaucsl_val, payems_val, unrate_val, t10y2y_val, walcl_val
+            
+        FROM imputed_yahoo_fred_data 
         ORDER BY date ASC
     ) 
     LOOP
@@ -37,31 +41,27 @@ BEGIN
         
         -- --------------------------------------------------------------------
         -- STEP 1: FETCH THE HISTORICAL & FUTURE SNAPSHOTS
-        -- We query the exact row for 1 month, 3 months, and 6 months ago, 
-        -- plus 6 months into the future.
         -- --------------------------------------------------------------------
         
         -- 1 Month Ago (21 Trading Days)
-        SELECT * INTO v_past_1m FROM imputed_yahoo_data 
+        SELECT * INTO v_past_1m FROM imputed_yahoo_fred_data 
         WHERE date < v_today.date ORDER BY date DESC OFFSET 20 LIMIT 1;
         
         -- 3 Months Ago (63 Trading Days)
-        SELECT * INTO v_past_3m FROM imputed_yahoo_data 
+        SELECT * INTO v_past_3m FROM imputed_yahoo_fred_data 
         WHERE date < v_today.date ORDER BY date DESC OFFSET 62 LIMIT 1;
         
         -- 6 Months Ago (126 Trading Days)
-        SELECT * INTO v_past_6m FROM imputed_yahoo_data 
+        SELECT * INTO v_past_6m FROM imputed_yahoo_fred_data 
         WHERE date < v_today.date ORDER BY date DESC OFFSET 125 LIMIT 1;
 
         -- 6 Months into the Future (126 Trading Days)
-        SELECT * INTO v_future_6m FROM imputed_yahoo_data 
+        SELECT * INTO v_future_6m FROM imputed_yahoo_fred_data 
         WHERE date > v_today.date ORDER BY date ASC OFFSET 125 LIMIT 1;
 
 
         -- --------------------------------------------------------------------
         -- STEP 2: VERIFY WE ARE IN THE "ACTIVE TRAINING" PHASE
-        -- If v_past_6m is NULL, we are in the Warm-Up Phase (Skip row).
-        -- If v_future_6m is NULL, we are in the Blind Spot (Live Predict row).
         -- --------------------------------------------------------------------
         IF v_past_6m IS NOT NULL AND v_future_6m IS NOT NULL THEN
             
@@ -77,8 +77,7 @@ BEGIN
 
             -- ----------------------------------------------------------------
             -- STEP 3: ASSEMBLE THE FULL FEATURE MATRIX (X)
-            -- We now calculate all 114 momentum variables for this specific day
-            -- and write them directly into our final training table.
+            -- Matrix expanded from 114 variables to 129 variables
             -- ----------------------------------------------------------------
             INSERT INTO final_training_matrix (
                 date, target_class,
@@ -146,7 +145,14 @@ BEGIN
                 -- SYSTEMIC JP EQUITIES
                 t7203_1M_ret, t7203_3M_ret, t7203_6M_ret,
                 t9984_1M_ret, t9984_3M_ret, t9984_6M_ret,
-                t8035_1M_ret, t8035_3M_ret, t8035_6M_ret
+                t8035_1M_ret, t8035_3M_ret, t8035_6M_ret,
+                
+                -- NEW: FRED MACROECONOMIC INDICATORS
+                cpiaucsl_1M_ret, cpiaucsl_3M_ret, cpiaucsl_6M_ret,
+                payems_1M_ret, payems_3M_ret, payems_6M_ret,
+                unrate_1M_ret, unrate_3M_ret, unrate_6M_ret,
+                t10y2y_1M_ret, t10y2y_3M_ret, t10y2y_6M_ret,
+                walcl_1M_ret, walcl_3M_ret, walcl_6M_ret
             )
             VALUES (
                 v_today.date, v_target_class,
@@ -203,7 +209,14 @@ BEGIN
                 
                 (v_today.t7203_price / v_past_1m.t7203_price) - 1, (v_today.t7203_price / v_past_3m.t7203_price) - 1, (v_today.t7203_price / v_past_6m.t7203_price) - 1,
                 (v_today.t9984_price / v_past_1m.t9984_price) - 1, (v_today.t9984_price / v_past_3m.t9984_price) - 1, (v_today.t9984_price / v_past_6m.t9984_price) - 1,
-                (v_today.t8035_price / v_past_1m.t8035_price) - 1, (v_today.t8035_price / v_past_3m.t8035_price) - 1, (v_today.t8035_price / v_past_6m.t8035_price) - 1
+                (v_today.t8035_price / v_past_1m.t8035_price) - 1, (v_today.t8035_price / v_past_3m.t8035_price) - 1, (v_today.t8035_price / v_past_6m.t8035_price) - 1,
+                
+                -- NEW: MACROECONOMIC MOMENTUM
+                (v_today.cpiaucsl_val / v_past_1m.cpiaucsl_val) - 1, (v_today.cpiaucsl_val / v_past_3m.cpiaucsl_val) - 1, (v_today.cpiaucsl_val / v_past_6m.cpiaucsl_val) - 1,
+                (v_today.payems_val / v_past_1m.payems_val) - 1,     (v_today.payems_val / v_past_3m.payems_val) - 1,     (v_today.payems_val / v_past_6m.payems_val) - 1,
+                (v_today.unrate_val / v_past_1m.unrate_val) - 1,     (v_today.unrate_val / v_past_3m.unrate_val) - 1,     (v_today.unrate_val / v_past_6m.unrate_val) - 1,
+                (v_today.t10y2y_val / v_past_1m.t10y2y_val) - 1,     (v_today.t10y2y_val / v_past_3m.t10y2y_val) - 1,     (v_today.t10y2y_val / v_past_6m.t10y2y_val) - 1,
+                (v_today.walcl_val / v_past_1m.walcl_val) - 1,       (v_today.walcl_val / v_past_3m.walcl_val) - 1,       (v_today.walcl_val / v_past_6m.walcl_val) - 1
             );
             
         -- (The logic for the 'Live Prediction' point where v_future_6m IS NULL 

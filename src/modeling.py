@@ -11,6 +11,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.feature_selection import SequentialFeatureSelector, SelectKBest, f_classif
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import confusion_matrix, roc_curve, accuracy_score
+from datetime import datetime
 from google import genai
 from config import GEMINI_API_KEY
 from audit import generate_variable_audit_table
@@ -93,14 +94,17 @@ def apply_ks_logic(preds, probs, classes, cutoff):
     return adjusted_preds
 
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=8, pre_filter_k=80, timestamp=None):
-    print(f"Fuehre Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Fuehre Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
     custom_weights = calculate_smoothed_weights(y, smoothing='log')
-    print(f"Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
     
     k_actual = min(pre_filter_k, X_scaled.shape[1])
     kbest = SelectKBest(score_func=f_classif, k=k_actual)
+    
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Starting SelectKBest (ANOVA)...")
     kbest.fit(X_scaled, y)
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: SelectKBest complete.")
     
     features_stage_1 = X_scaled.columns[kbest.get_support()]
     rejected_stage_1 = X_scaled.columns[~kbest.get_support()]
@@ -117,15 +121,22 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     tscv = TimeSeriesSplit(n_splits=5, gap=horizon, max_train_size=None, test_size=test_size)
     
     log_reg_base = LogisticRegression(solver='lbfgs', max_iter=200, class_weight=custom_weights)
-    sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=tscv, n_jobs=None)
+    
+    sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=tscv, n_jobs=-1)
+    
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Starting SequentialFeatureSelector (SFS). Dies kann einige Minuten dauern...")
     sfs.fit(X_stage_1, y)
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: SFS complete.")
     
     selected_features = features_stage_1[sfs.get_support()]
     rejected_stage_2 = features_stage_1[~sfs.get_support()]
     X_optimal = X_scaled[selected_features]
     
     model = LogisticRegression(solver='lbfgs', max_iter=1000, class_weight=custom_weights)
+    
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Fitting final Logistic Regression...")
     model.fit(X_optimal, y)
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Final fit complete. Starting OOF Evaluation...")
 
     # 1. Out-of-Fold (OOF) Evaluierung
     oof_preds = np.full(len(y), np.nan)
@@ -145,6 +156,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     y_valid = y.iloc[valid_indices]
     oof_preds_valid = oof_preds[valid_indices]
     oof_probs_valid = oof_probs[valid_indices]
+    
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: OOF Evaluation complete.")
 
     # 2. KS-Statistik (Cutoff Optimierung fuer Klasse -1)
     y_down_true = (y_valid == -1).astype(int)
@@ -158,7 +171,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         ks_stats = tpr - fpr
         max_ks_idx = np.argmax(ks_stats)
         optimal_down_threshold = thresholds[max_ks_idx]
-        print(f"KS-Statistik optimiert: Cutoff fuer -1 liegt bei {optimal_down_threshold:.2%}")
+        print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: KS-Statistik optimiert: Cutoff fuer -1 liegt bei {optimal_down_threshold:.2%}")
 
     # 3. Synchronisation der Matrizen mit dem KS-Cutoff
     oof_preds_ks = apply_ks_logic(oof_preds_valid, oof_probs_valid, model.classes_, optimal_down_threshold)
@@ -237,7 +250,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     }).sort_values(by='Einfluss (Mean Absolut)', ascending=False)
     
     if timestamp:
-        print("Hole oekonomische Interpretation vom LLM...")
+        print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Hole oekonomische Interpretation vom LLM...")
         llm_analysis = get_llm_interpretation(coeff_df.to_string(index=False), target_etf)
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
