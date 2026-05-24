@@ -117,7 +117,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     tscv = TimeSeriesSplit(n_splits=5, gap=horizon, max_train_size=None, test_size=test_size)
     
     log_reg_base = LogisticRegression(solver='lbfgs', max_iter=200, class_weight=custom_weights)
-    sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=tscv, n_jobs=None)
+    sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=tscv, n_jobs=-1)
     sfs.fit(X_stage_1, y)
     
     selected_features = features_stage_1[sfs.get_support()]
