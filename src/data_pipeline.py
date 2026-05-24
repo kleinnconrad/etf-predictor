@@ -61,17 +61,22 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calculating rolling momentum (Feature Engineering)...")
     windows = [21, 63, 126]
-    features = pd.DataFrame(index=imputed_data.index)
-    
+
+    # Build all columns at once to avoid DataFrame fragmentation
+    col_dict = {}
     for col in imputed_data.columns:
         for w in windows:
-            features[f'{col}_{w}M_ret'] = imputed_data[col].pct_change(w)
-            
-    # CRITICAL: Clean Inf and NaN values caused by rolling calculations
+            col_dict[f'{col}_{w}M_ret'] = imputed_data[col].pct_change(w)
+
+    features = pd.DataFrame(col_dict, index=imputed_data.index)
+
+    # Clean Inf and NaN values caused by rolling calculations
     features = features.replace([np.inf, -np.inf], np.nan)
-    features = features.copy() # Defragment memory
-            
-    features['future_6M_return'] = imputed_data[target_ticker].shift(-forecast_horizon) / imputed_data[target_ticker] - 1
+
+    features['future_6M_return'] = (
+        imputed_data[target_ticker].shift(-forecast_horizon) 
+        / imputed_data[target_ticker] - 1
+    )
     
     def categorize_return(ret):
         if pd.isna(ret): return None
@@ -80,13 +85,30 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
         else: return 0
             
     features['target_class'] = features['future_6M_return'].apply(categorize_return)
-    
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Dropping all remaining NaN rows...")
-    features = features.dropna()
-    
+
+    # Impute NaN in feature columns for ALL rows (training, CV, and live) uniformly.
+    # ffill: last known value forward; bfill: fallback for any leading NaNs.
+    # Applied before splitting so the scaler sees a consistent distribution.
+    feature_cols_for_impute = [c for c in features.columns if c not in ['target_class', 'future_6M_return']]
+    features[feature_cols_for_impute] = features[feature_cols_for_impute].ffill().bfill()
+
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Splitting live and training rows...")
+
+    # Separate live rows BEFORE any dropna, so they aren't wiped out
     live_predict_row = features[features['target_class'].isna()].copy()
+
+    # Drop rows where target_class is missing (live rows) or any feature is NaN
     training_matrix = features.dropna(subset=['target_class']).copy()
-    
+    training_matrix = training_matrix.dropna()
+
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Training rows: {len(training_matrix)}, Live rows: {len(live_predict_row)}")
+
+    if live_predict_row.empty:
+        raise ValueError(
+            "No live prediction rows found. All rows have a known future return, "
+            "which means end_date may not be recent enough to produce unlabelled rows."
+        )
+
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Scaling features...")
     feature_cols = [c for c in training_matrix.columns if c not in ['target_class', 'future_6M_return']]
     
