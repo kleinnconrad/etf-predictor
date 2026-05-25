@@ -5,7 +5,7 @@ import numpy as np
 import yfinance as yf
 from sklearn.preprocessing import StandardScaler
 from fredapi import Fred
-from config import FRED_INDICATORS
+from config import ALL_FRED_INDICATORS
 from datetime import datetime
 import os
 
@@ -25,7 +25,7 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
         
     fred = Fred(api_key=api_key)
     
-    for indicator in FRED_INDICATORS:
+    for indicator in ALL_FRED_INDICATORS:
         print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Fetching {indicator} via API...")
         try:
             series = fred.get_series(indicator, observation_start=adjusted_start, observation_end=end_date)
