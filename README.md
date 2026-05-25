@@ -93,4 +93,6 @@ The model is deployed as a web service using Streamlit, Docker, and Railway.app.
 
 [yahoo-finance-etf-overview](https://de.finance.yahoo.com/m%C3%A4rkte/etfs/top-performer/)
 
+[FRED-API](https://fred.stlouisfed.org/docs/api/fred/)
+
 Copyright (c) 2026 Conrad Kleinn. Alle Rechte vorbehalten. / All rights reserved.
