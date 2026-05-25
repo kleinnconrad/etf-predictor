@@ -1,4 +1,4 @@
-[![glm-checklist Repo Card](https://github-readme-stats.vercel.app/api/pin/?username=kleinnconrad&repo=glm-checklist&theme=default)](https://github.com/kleinnconrad/glm-checklist)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/kleinnconrad/glm-checklist)
 
 
 ### 1. Data Preparation
