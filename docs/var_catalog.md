@@ -63,6 +63,7 @@
 | `bndx_1M_ret`, `bndx_3M_ret`, `bndx_6M_ret` | Vanguard Total International Bond ETF | Hedged non-US bonds exposure. | SOVEREIGN_YIELDS | Yahoo Finance |
 | `bwx_1M_ret`, `bwx_3M_ret`, `bwx_6M_ret` | SPDR Bloomberg International Treasury Bond ETF | Broad non-US sovereign debt exposure. | SOVEREIGN_YIELDS | Yahoo Finance |
 | `igov_1M_ret`, `igov_3M_ret`, `igov_6M_ret` | iShares International Treasury Bond ETF | Heavy exposure to Eurozone/Japan sovereign bonds. | SOVEREIGN_YIELDS | Yahoo Finance |
+<<<<<<< HEAD
 | `7203t_1M_ret`, `7203t_3M_ret`, `7203t_6M_ret` | Toyota Motor Corp. (7203.T) | Systemic Japanese proxy for global automotive manufacturing. | SYSTEMIC JP EQUITIES | Yahoo Finance |
 | `8035t_1M_ret`, `8035t_3M_ret`, `8035t_6M_ret` | Tokyo Electron Ltd. (8035.T) | Systemic Japanese proxy for global semiconductor equipment manufacturing. | SYSTEMIC JP EQUITIES | Yahoo Finance |
 | `9984t_1M_ret`, `9984t_3M_ret`, `9984t_6M_ret` | SoftBank Group Corp. (9984.T) | Systemic Japanese proxy for global technology investing and telecommunications. | SYSTEMIC JP EQUITIES | Yahoo Finance |

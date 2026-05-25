@@ -5,14 +5,14 @@ This repository contains a machine learning pipeline to forecast the medium-term
 ## Table of Contents
 
 - [Model Architecture](#model-architecture)
-  - [1. Feature Engineering & Variable Transformation](#1-feature-engineering--variable-transformation)
+  - [1. Feature Engineering, Interaction Effects & Variable Transformation](#1-feature-engineering-interaction-effects--variable-transformation)
   - [2. Dynamic Target Classification](#2-dynamic-target-classification)
   - [3. Two-Stage Feature Selection](#3-two-stage-feature-selection)
   - [4. Evaluation (TimeSeries Split)](#4-evaluation-timeseries-split)
   - [5. Combating Base Rate Bias (Logarithmic Class Smoothing)](#5-combating-base-rate-bias-logarithmic-class-smoothing)
-- [Risk Management & Model Safeguards](#6-risk-management--model-safeguards)
-  - [1. Quality Gate (Out-of-Fold Evaluation)](#61-quality-gate-out-of-fold-evaluation)
-  - [2. KS Statistic Cutoff Optimization (Crash Sensor)](#62-ks-statistic-cutoff-optimization-crash-sensor)
+- [Risk Management & Model Safeguards](#risk-management--model-safeguards)
+  - [1. Quality Gate (Out-of-Fold Evaluation)](#1-quality-gate-out-of-fold-evaluation)
+  - [2. KS Statistic Cutoff Optimization (Crash Sensor)](#2-ks-statistic-cutoff-optimization-crash-sensor)
 - [Automated Economic Interpretation (LLM)](#automated-economic-interpretation-llm)
 - [Configuration (`config.py`)](#configuration-configpy)
 - [Data Source & Macro Universe](#data-source--macro-universe)
@@ -25,29 +25,49 @@ This repository contains a machine learning pipeline to forecast the medium-term
 
 The pipeline addresses typical financial time series modeling issues, specifically multicollinearity and high dimensionality, through a multi-stage architecture.
 
-### 1. Feature Engineering & Variable Transformation
+### 1. Feature Engineering, Interaction Effects & Variable Transformation
 
-The model does not process absolute stock prices. The raw data undergoes a three-stage transformation prior to modeling. First, the pipeline retrieves the adjusted closing prices of all defined tickers up to the current date. Second, absolute prices are converted into rolling percentage returns (`pct_change`) representing short- and medium-term momentum (1 month/21 days, 3 months/63 days, and 6 months/126 days). Third, to prevent scale effects in the logistic regression, rolling returns are transformed into Z-scores using a `StandardScaler` fitted exclusively on historical training data. The final input variables measure the distance of a return from its 10-year mean in standard deviations.
+The model does not process absolute stock prices. The raw data undergoes a multi-stage transformation prior to modeling:
+
+* **Raw Data Ingestion:** The pipeline retrieves the adjusted closing prices and macroeconomic indicators up to the current date.
+* **Deterministic Interaction Effects:** Instead of relying on brute-force polynomial features that introduce noise, the pipeline engineers specific economic ratios (e.g., Copper/Gold for growth vs. inflation, HYG/LQD for credit stress, SPY/TLT for risk appetite). This translates absolute prices into transparent, systemic market spreads.
+* **Rolling Momentum:** Absolute prices and ratios are converted into rolling percentage returns (`pct_change`) representing short- and medium-term momentum (1 month/21 days, 3 months/63 days, and 6 months/126 days). This ensures mathematical stationarity.
+* **Outlier Treatment (Winsorization):** Financial markets exhibit "fat tails." To prevent extreme market anomalies from causing "feature squashing" during normalization, variables are clipped at the 1st and 99th percentiles. Crucially, these thresholds are derived *exclusively* from the training set to prevent lookahead bias, and then applied identically to the live prediction row.
+* **Z-Score Normalization:** To prevent scale effects in the logistic regression, the clipped rolling returns are transformed into Z-scores using a `StandardScaler`. The final input variables measure the distance of a return from its 10-year mean in standard deviations.
 
 ### 2. Dynamic Target Classification
 
-Return classification is based on macroeconomic assumptions scaled to the forecast horizon. The model applies an assumed base inflation rate (e.g., 2.5% p.a.) and a tolerance corridor (e.g., +/- 1.0% p.a.). These annualized values are linearly scaled to the forecast horizon (e.g., 126 trading days). The classification logic dictates that a future return exceeding the upper threshold is classified as `Up` (1). A return below the lower threshold is `Down` (-1). A return within the corridor is classified as `Flat` (0).
+Return classification is based on macroeconomic assumptions scaled to the forecast horizon:
+
+* **Economic Baseline:** The model applies an assumed base inflation rate (e.g., 2.5% p.a.) and a tolerance corridor (e.g., +/- 1.0% p.a.).
+* **Scaling:** These annualized values are linearly scaled to the forecast horizon (e.g., 126 trading days). 
+* **Logic:** A future return exceeding the upper threshold is classified as `Up` (1). A return below the lower threshold is `Down` (-1). A return within the corridor is classified as `Flat` (0).
 
 ### 3. Two-Stage Feature Selection
 
-Predictor selection is performed in two steps to ensure model stability. The filter stage uses a univariate ANOVA F-test (`SelectKBest`) to reduce the feature space to the 80 strongest predictors. This eliminates variables with low significance to limit the computational load. The wrapper stage employs Sequential Feature Selection (`SequentialFeatureSelector`) with 3-fold cross-validation to identify the optimal subset (default: 8 features) from the remaining variables, reducing multicollinearity.
+Predictor selection is performed in two steps to ensure model stability:
+
+* **Filter Stage:** Uses a univariate ANOVA F-test (`SelectKBest`) to reduce the feature space to the 80 strongest predictors. This eliminates variables with low significance to limit the computational load. 
+* **Wrapper Stage:** Employs Sequential Feature Selection (`SequentialFeatureSelector`) with 5-fold cross-validation to identify the optimal subset (default: 12 features) from the remaining variables, systematically stripping out multicollinearity.
 
 ### 4. Evaluation (TimeSeries Split)
 
-Out-of-sample evaluation utilizes a `TimeSeriesSplit`. The `gap` parameter equals the forecast horizon. This prevents data leakage caused by overlapping return windows between training and test data.
+* Out-of-sample evaluation utilizes a `TimeSeriesSplit`. 
+* The `gap` parameter equals the forecast horizon. This strictly prevents data leakage caused by overlapping return windows between historical training batches and test data.
 
 ### 5. Combating Base Rate Bias (Logarithmic Class Smoothing)
 
-Forecasting broad market indices is complicated by historical upward trends, known as base rate bias. Uncorrected models often favor the `Up` class due to asymmetric class distribution. Linear weight corrections tend to overcompensate, increasing false positive rates. The pipeline calculates dynamic class weights based on logarithmic smoothing. The penalty weight ($W$) per class is calculated as:
+Forecasting broad market indices is complicated by historical upward trends, known as base rate bias. Uncorrected models often favor the `Up` class due to asymmetric class distribution. Linear weight corrections tend to overcompensate, increasing false positive rates. 
+
+The pipeline calculates dynamic class weights based on logarithmic smoothing. The penalty weight ($W$) per class is calculated as:
 
 $$W_{class} = \log_{10}\left(\frac{N_{majority}}{N_{class}}\right) + 1.0$$
 
-This function dampens statistical outliers in weighting. The majority class receives a base weight of 1.0. Underrepresented classes receive logarithmically scaled, higher penalty weights. This sensitizes the model to minority classes without generating excessive false alarms.
+* The majority class receives a base weight of 1.0. 
+* Underrepresented classes receive logarithmically scaled, higher penalty weights. 
+* This sensitizes the model to minority classes without generating excessive false alarms.
+
+---
 
 ## Risk Management & Model Safeguards
 
@@ -55,15 +75,29 @@ The pipeline integrates two statistical mechanisms to prevent overfitting and im
 
 ### 1. Quality Gate (Out-of-Fold Evaluation)
 
-Feature selection algorithms risk overfitting in large variable spaces. A model might perfectly fit historical data but fail on unseen data. The model undergoes an Out-of-Fold (OOF) validation before issuing a final forecast. The dataset is chronologically partitioned via a `TimeSeriesSplit`. The prediction accuracy on unseen data blocks is aggregated. The quality gate requires a cross-validated accuracy exceeding 35%. Below this threshold, the model offers no significant advantage over random classification, and the forecast is blocked to prevent statistically insignificant signals.
+Feature selection algorithms risk overfitting in large variable spaces. A model might perfectly fit historical data but fail on unseen data. 
+* The model undergoes an Out-of-Fold (OOF) validation before issuing a final forecast. 
+* The dataset is chronologically partitioned via a `TimeSeriesSplit`. The prediction accuracy on unseen data blocks is aggregated. 
+* The quality gate requires a cross-validated accuracy exceeding a baseline threshold. Below this threshold, the forecast and artifact generation are blocked to prevent statistically insignificant signals from reaching production.
 
 ### 2. KS Statistic Cutoff Optimization (Crash Sensor)
 
-A logistic regression defaults to the class with the highest probability. This static threshold is inadequate for asymmetric risk profiles like market crashes. The pipeline dynamically optimizes the trigger threshold for the `Down` class using the Kolmogorov-Smirnov (KS) statistic. The KS statistic identifies the probability cutoff that maximizes the difference between the True Positive Rate (TPR) and the False Positive Rate (FPR). This data-driven cutoff becomes the new threshold for the `Down` signal. If the current crash probability exceeds this optimized cutoff, the model issues a `Down` warning, regardless of whether another class holds a higher absolute probability.
+A logistic regression defaults to the class with the highest probability. This static threshold is inadequate for asymmetric risk profiles like market crashes. 
+* The pipeline dynamically optimizes the trigger threshold for the `Down` class using the Kolmogorov-Smirnov (KS) statistic. 
+* The KS statistic identifies the probability cutoff that maximizes the difference between the True Positive Rate (TPR) and the False Positive Rate (FPR). 
+* If the current crash probability exceeds this optimized cutoff, the model issues a `Down` warning, regardless of whether another class holds a higher absolute probability.
+
+---
 
 ## Automated Economic Interpretation (LLM)
 
-The pipeline integrates the Google Gemini API to provide an economic rationale for the selected predictors. After identifying the top variables, the resulting coefficient matrix is passed to the LLM. The model interprets economic relationships, such as sector dependencies or inverse correlations, and appends a quantitative analysis to the output report. The API request includes an automatic retry mechanism to handle rate limits (HTTP 429) or server overloads (HTTP 503). The API key is dynamically loaded from the `GEMINI_API_KEY` environment variable.
+The pipeline integrates the Google Gemini API to provide an economic rationale for the selected predictors. 
+* After identifying the top variables, the resulting coefficient matrix is passed to the LLM. 
+* The model interprets economic relationships, such as sector dependencies or inverse correlations, and appends a quantitative analysis to the output report. 
+* The API request includes an automatic retry mechanism to handle rate limits (HTTP 429) or server overloads (HTTP 503). 
+* The API key is dynamically loaded from the `GEMINI_API_KEY` environment variable.
+
+---
 
 ## Configuration (`config.py`)
 
@@ -77,17 +111,40 @@ Hyperparameters and economic assumptions are managed in `src/config.py`.
 | `ANNUAL_MARGIN` | `float` | Tolerance corridor around the baseline (e.g., `0.01`). |
 | `START_DATE` / `END_DATE` | `str` | Historical training period boundaries. |
 
+---
+
 ## Data Source & Macro Universe
 
-Historical adjusted closing prices are fetched via the Yahoo Finance API (`yfinance`), while hard macroeconomic indicators are ingested directly from Federal Reserve Economic Data (FRED) CSV endpoints. Training a model on highly correlated equities causes multicollinearity, providing redundant signals and leading to overfitting. The pipeline mitigates this by utilizing a macro-proxy universe. The configuration curates approximately 50 distinct assets and economic indicators representing orthogonal economic factors. These include cost of capital (Treasury Yields, VIX, US Dollar Index), credit risk (High Yield Corporate Bonds, Long-Term Treasuries), market inflation indicators (Crude Oil, Copper, Agricultural Commodities), sector rotation (cyclical vs. defensive ETFs), alternative liquidity (Bitcoin), and global systemic equities. To anchor market expectations to physical economic realities, the universe integrates realized inflation (CPI), employment metrics (Nonfarm Payrolls, Unemployment Rate), systemic liquidity (Fed Balance Sheet), and leading recessionary indicators (10Y-2Y Treasury Spread). To prevent lookahead bias, **FRED economic data** is structurally shifted forward by a 30-day publication lag before merging with the daily trading calendar. The pipeline calculates the 1-month, 3-month, and 6-month momentum for these combined base assets and economic indicators, yielding a final training matrix of approximately 150 distinct macroeconomic variables.
+Training a model on highly correlated equities causes multicollinearity, providing redundant signals and leading to overfitting. The pipeline mitigates this by utilizing a macro-proxy universe. The configuration curates approximately 50 distinct assets and economic indicators representing orthogonal economic factors:
+
+* **Cost of Capital:** Treasury Yields, VIX, US Dollar Index.
+* **Credit Risk:** High Yield Corporate Bonds, Long-Term Treasuries, Sovereign Yield ETFs.
+* **Market Inflation Indicators:** Crude Oil, Copper, Agricultural Commodities.
+* **Sector Rotation:** Cyclical vs. defensive ETFs.
+* **Alternative Liquidity:** Bitcoin.
+* **Systemic Equities:** Global leading corporations across US, EU, UK, and JP markets.
+* **Hard Macroeconomics (FRED):** Realized inflation (CPI), employment metrics (Nonfarm Payrolls, Unemployment Rate), systemic liquidity (Central Bank Assets), and leading recessionary indicators (10Y-2Y Treasury Spread) across major industrial nations.
+
+To prevent lookahead bias, **FRED economic data** is structurally shifted forward by a 30-day publication lag before merging with the daily trading calendar. The pipeline calculates the 1-month, 3-month, and 6-month momentum for these combined base assets and economic indicators, yielding a final training matrix of approximately 150 distinct macroeconomic variables.
+
+---
 
 ## Execution (Local & Development)
 
-The repository is configured for GitHub Codespaces. Dependencies install automatically via the `.devcontainer/devcontainer.json` configuration. The pipeline is executed via the `python src/main.py` command. It generates three artifacts in the `/output` directory: a visual confusion matrix evaluation (`.png`), the cleaned historical dataset (`.csv`), and a statistical documentation report (`.md`) including predictor ranking and the LLM interpretation.
+The repository is configured for GitHub Codespaces. 
+* Dependencies install automatically via the `.devcontainer/devcontainer.json` configuration. 
+* The pipeline is executed via the `python src/main.py` command. 
+* It generates artifacts in the `/output` directory: a visual confusion matrix evaluation (`.png`), the cleaned historical dataset (`.csv`), and a statistical documentation report (`.md`) including predictor ranking and the LLM interpretation.
+
+---
 
 ## Cloud Deployment (Docker & Railway)
 
-The model is deployed as a web service using Streamlit, Docker, and Railway.app. The `Dockerfile` handles system dependencies and exposes port 8501. Deployment is automated via GitHub integration on Railway. The `GEMINI_API_KEY` and `PORT` environment variables must be configured securely in the Railway dashboard. The deployed application fetches live data and generates macroeconomic forecasts upon user request.
+The model is deployed as a web service using Streamlit, Docker, and Railway.app. 
+* The `Dockerfile` handles system dependencies and exposes port 8501. 
+* Deployment is automated via GitHub integration on Railway. 
+* The `GEMINI_API_KEY` and `PORT` environment variables must be configured securely in the Railway dashboard. 
+* The deployed application fetches live data and generates macroeconomic forecasts upon user request.
 
 [etf-predictor-web-service](https://etf-predictor-production.up.railway.app)
 

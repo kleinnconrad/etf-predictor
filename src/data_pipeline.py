@@ -132,6 +132,22 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Scaling features...")
     feature_cols = [c for c in training_matrix.columns if c not in ['target_class', 'future_6M_return']]
     
+    # =========================================================================
+    # DETERMINISTIC WINSORIZATION (CLIPPING OUTLIERS)
+    # =========================================================================
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Clipping outliers at 1st and 99th percentiles...")
+    
+    # 1. Berechne die harten Limits NUR auf Basis der Trainingsdaten
+    lower_bounds = training_matrix[feature_cols].quantile(0.01)
+    upper_bounds = training_matrix[feature_cols].quantile(0.99)
+    
+    # 2. Kappe alle extremen Ausreißer auf diese Limits im Trainingsset
+    training_matrix[feature_cols] = training_matrix[feature_cols].clip(lower=lower_bounds, upper=upper_bounds, axis=1)
+    
+    # 3. Wende exakt dieselben Limits auf den Live-Datenpunkt an
+    live_predict_row[feature_cols] = live_predict_row[feature_cols].clip(lower=lower_bounds, upper=upper_bounds, axis=1)
+    # =========================================================================
+
     scaler = StandardScaler()
     X_train_scaled = pd.DataFrame(
         scaler.fit_transform(training_matrix[feature_cols]), 
