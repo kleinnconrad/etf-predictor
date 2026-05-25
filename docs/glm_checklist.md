@@ -1,3 +1,6 @@
+[![glm-checklist Repo Card](https://github-readme-stats.vercel.app/api/pin/?username=kleinnconrad&repo=glm-checklist&theme=default)](https://github.com/kleinnconrad/glm-checklist)
+
+
 ### 1. Data Preparation
 * **Imputation [✅ Pass]:** Missing values were appropriately replaced. *Implementation: Forward-fill (`.ffill()`) applied to lower-frequency FRED data upon merging to strictly prevent look-ahead bias.*
 * **Outlier Handling [✅ Pass]:** Extreme data points were identified and adequately handled. *Implementation: Deterministic Winsorization (clipping at 1st and 99th percentiles) derived exclusively from training data.*
