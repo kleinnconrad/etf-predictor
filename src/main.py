@@ -40,7 +40,7 @@ def main():
         latest_features_scaled=latest_features_scaled,
         target_etf=TARGET_ETF,
         horizon=FORECAST_HORIZON_DAYS,
-        final_features=8, 
+        final_features=12, 
         timestamp=timestamp
     )
     print(f"[{datetime.now().strftime('%H:%M:%S')}] RETURNED: perform_feature_selection")
