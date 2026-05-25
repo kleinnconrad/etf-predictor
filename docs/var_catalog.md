@@ -1,4 +1,5 @@
-
+| Abbreviations (Code) | Full Name | Description | Category | Source |
+| :--- | :--- | :--- | :--- | :--- |
 | `7203t_1M_ret`, `7203t_3M_ret`, `7203t_6M_ret` | Momentum Features | 1-month, 3-month, and 6-month percentage returns for 7203T | MARKET MOMENTUM | Yahoo Finance & FRED API |
 | `8035t_1M_ret`, `8035t_3M_ret`, `8035t_6M_ret` | Momentum Features | 1-month, 3-month, and 6-month percentage returns for 8035T | MARKET MOMENTUM | Yahoo Finance & FRED API |
 | `9984t_1M_ret`, `9984t_3M_ret`, `9984t_6M_ret` | Momentum Features | 1-month, 3-month, and 6-month percentage returns for 9984T | MARKET MOMENTUM | Yahoo Finance & FRED API |
