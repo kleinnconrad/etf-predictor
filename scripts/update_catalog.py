@@ -28,21 +28,29 @@ def main():
 
     client = genai.Client(api_key=api_key)
 
+    # =========================================================================
+    # UPGRADED PROMPT: Institutional-Grade Requirements
+    # =========================================================================
     prompt = f"""
-    You are a technical documenter for a quantitative finance pipeline.
-    You need to compare the variables defined in the codebase with the existing markdown table in var_catalog.md.
+    You are a Quantitative Financial Analyst and Technical Documenter for an institutional trading pipeline.
+    Your task is to compare the variables defined in the codebase with the existing markdown table in var_catalog.md.
     
-    Identify any variable that is missing from the markdown table. Look in two places:
+    Identify any variable missing from the markdown table by cross-referencing:
     1. Financial tickers and indicators in the lists of config.py.
     2. Engineered interaction ratios in data_pipeline.py (look for the string names passed to the `safe_ratio` function, e.g., 'ratio_copper_gold').
 
     Generate ONLY the missing table rows in this exact markdown format:
-    | `ticker_1M_ret`, `ticker_3M_ret`, `ticker_6M_ret` | Full Name | Brief Description | Category | Source |
+    | `ticker_1M_ret`, `ticker_3M_ret`, `ticker_6M_ret` | Full Name | Description | Category | Source |
 
-    Rules:
+    STRICT CONTENT RULES FOR COLUMNS:
+    - **Full Name:** You MUST provide the actual, professional name of the asset or ratio (e.g., "Toyota Motor Corp.", "Copper / Gold Ratio", "10-Year Minus 2-Year Treasury Yield Spread"). Do NOT just repeat the ticker. Use your financial knowledge and the inline code comments to figure this out.
+    - **Description:** Provide a highly specific, institutional-grade macroeconomic explanation. What does this measure? Why is it relevant for forecasting a broad market index? (e.g., "The Growth/Inflation Engine. Measures industrial expansion against safe-haven hoarding." or "Systemic Japanese proxy for global automotive manufacturing."). ABSOLUTELY DO NOT write lazy generic text like "1-month percentage returns for X".
+    - **Category:** Group them logically based on the list names in config.py (e.g., "MACRO INDICATORS", "SYSTEMIC US EQUITIES", "FRED MACROECONOMIC INDICATORS"). For ratios in data_pipeline.py, use "ENGINEERED INTERACTIONS".
+    - **Source:** State "Yahoo Finance", "FRED", or "Pipeline Transformation" (for engineered ratios).
+
+    STRICT FORMATTING RULES:
     - For config.py tickers: The code abbreviation must be lowercase and stripped of special characters (e.g., ^TNX becomes tnx, CL=F becomes cl).
     - For data_pipeline.py ratios: Use the exact string name from the safe_ratio call (e.g., ratio_copper_gold) and append _1M_ret, _3M_ret, _6M_ret.
-    - Category for engineered ratios should be "ENGINEERED INTERACTIONS". Source should be "Pipeline Transformation".
     - Do not output table headers. Do not output markdown codeblock backticks (```).
     - If there are no missing variables, output the exact string "NO_MISSING_VARIABLES".
 
@@ -55,6 +63,7 @@ def main():
     === var_catalog.md ===
     {catalog_content}
     """
+    # =========================================================================
 
     print("Checking for missing catalog entries...")
     try:
