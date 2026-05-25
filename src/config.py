@@ -99,7 +99,7 @@ FRED_INDICATORS = [
 
 # FRED: Eurozone & Germany Macro
 FRED_INDICATORS_EU = [
-    'CP0000EZ19M086NES', # Euro Area CPI (Inflation)
+    'CP00MI15EA20M086NEST', # Euro Area CPI (Inflation)
     'LRHUTTTTEZM156S',   # Euro Area Unemployment Rate
     'ECBASSETS',         # ECB Total Assets (Systemic Liquidity)
     'PRINTO01EZQ661S'    # Euro Area Industrial Production
