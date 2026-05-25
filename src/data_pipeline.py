@@ -12,12 +12,13 @@ import os
 def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     """
     Fetches macroeconomic data natively using the official FRED API 
-    and applies a uniform publication lag.
+    and applies a uniform publication lag. Gracefully skips missing series.
     """
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating FRED API data download for {len(ALL_FRED_INDICATORS)} indicators...")
     
     adjusted_start = pd.to_datetime(start_date) - pd.Timedelta(days=60)
     series_list = []
+    failed_tickers = []  # List to track failed downloads
     
     api_key = os.getenv("FRED_API_KEY")
     if not api_key:
@@ -33,8 +34,14 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
             df.index.name = 'DATE'
             series_list.append(df[indicator])
         except Exception as e:
-            print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE ERROR: Failed to fetch {indicator}. Details: {e}")
-            raise 
+            print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE WARNING: Failed to fetch {indicator}. Skipping. Details: {e}")
+            failed_tickers.append(indicator)
+            continue 
+            
+    # Print summary of failures if any occurred
+    if failed_tickers:
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE SUMMARY: {len(failed_tickers)} FRED indicators failed and were skipped:")
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] DROPPED TICKERS: {', '.join(failed_tickers)}")
             
     fred_raw = pd.concat(series_list, axis=1)
     fred_shifted = fred_raw.shift(freq=pd.Timedelta(days=lag_days))
