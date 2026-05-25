@@ -46,3 +46,20 @@
 | `unrate_1M_ret`, `unrate_3M_ret`, `unrate_6M_ret` | US Unemployment Rate | Lagging/coincident indicator reflecting broad US economic contractions. | NEW: FRED MACROECONOMIC INDICATORS | FRED |
 | `t10y2y_1M_ret`, `t10y2y_3M_ret`, `t10y2y_6M_ret` | 10-Year Minus 2-Year Treasury Yield Spread | Leading indicator tracking the slope of the yield curve and recessionary risk. | NEW: FRED MACROECONOMIC INDICATORS | FRED |
 | `walcl_1M_ret`, `walcl_3M_ret`, `walcl_6M_ret` | Total Assets of the Federal Reserve | Hard macroeconomic indicator tracking central bank balance sheet expansion/contraction (systemic liquidity). | NEW: FRED MACROECONOMIC INDICATORS | FRED |
+| `7203_1M_ret`, `7203_3M_ret`, `7203_6M_ret` | Toyota Motor Corp. (7203.T) | Systemic Japanese proxy for global automotive manufacturing. | TICKERS_JP | Yahoo Finance |
+| `9984_1M_ret`, `9984_3M_ret`, `9984_6M_ret` | SoftBank Group Corp. (9984.T) | Systemic Japanese proxy for global technology investing and telecommunications. | TICKERS_JP | Yahoo Finance |
+| `8035_1M_ret`, `8035_3M_ret`, `8035_6M_ret` | Tokyo Electron Ltd. (8035.T) | Systemic Japanese proxy for global semiconductor equipment manufacturing. | TICKERS_JP | Yahoo Finance |
+| `cp00mi15ea20m086nest_1M_ret`, `cp00mi15ea20m086nest_3M_ret`, `cp00mi15ea20m086nest_6M_ret` | Euro Area CPI (HICP) | Harmonized Index of Consumer Prices for the Euro Area, measuring inflation. | FRED_INDICATORS_EU | FRED |
+| `ecbassets_1M_ret`, `ecbassets_3M_ret`, `ecbassets_6M_ret` | ECB Total Assets | Total assets on the balance sheet of the European Central Bank, proxy for systemic liquidity. | FRED_INDICATORS_EU | FRED |
+| `lrhuttttezm156s_1M_ret`, `lrhuttttezm156s_3M_ret`, `lrhuttttezm156s_6M_ret` | Euro Area Unemployment Rate | Unemployment rate for the Euro Area, indicating labor market health. | FRED_INDICATORS_EU | FRED |
+| `printo01ezq661s_1M_ret`, `printo01ezq661s_3M_ret`, `printo01ezq661s_6M_ret` | Euro Area Industrial Production | Industrial production index for the Euro Area, reflecting manufacturing output. | FRED_INDICATORS_EU | FRED |
+| `gbrcpiallmimei_1M_ret`, `gbrcpiallmimei_3M_ret`, `gbrcpiallmimei_6M_ret` | UK CPI, All Items | Consumer Price Index for all items in the United Kingdom, measuring inflation. | FRED_INDICATORS_UK | FRED |
+| `gbrproindmismei_1M_ret`, `gbrproindmismei_3M_ret`, `gbrproindmismei_6M_ret` | UK Industrial Production | Industrial production index for the United Kingdom, reflecting manufacturing output. | FRED_INDICATORS_UK | FRED |
+| `lrhuttttgbl156s_1M_ret`, `lrhuttttgbl156s_3M_ret`, `lrhuttttgbl156s_6M_ret` | UK Unemployment Rate | Unemployment rate in the United Kingdom, indicating labor market health. | FRED_INDICATORS_UK | FRED |
+| `jpncpiallmimei_1M_ret`, `jpncpiallmimei_3M_ret`, `jpncpiallmimei_6M_ret` | Japan CPI, All Items | Consumer Price Index for all items in Japan, measuring inflation. | FRED_INDICATORS_JP | FRED |
+| `jpnassets_1M_ret`, `jpnassets_3M_ret`, `jpnassets_6M_ret` | Bank of Japan Total Assets | Total assets on the balance sheet of the Bank of Japan, proxy for systemic liquidity. | FRED_INDICATORS_JP | FRED |
+| `jpnproindmismei_1M_ret`, `jpnproindmismei_3M_ret`, `jpnproindmismei_6M_ret` | Japan Industrial Production | Industrial production index for Japan, reflecting manufacturing output. | FRED_INDICATORS_JP | FRED |
+| `lrhuttttjpm156s_1M_ret`, `lrhuttttjpm156s_3M_ret`, `lrhuttttjpm156s_6M_ret` | Japan Unemployment Rate | Unemployment rate in Japan, indicating labor market health. | FRED_INDICATORS_JP | FRED |
+| `bndx_1M_ret`, `bndx_3M_ret`, `bndx_6M_ret` | Vanguard Total International Bond ETF | Hedged non-US bonds exposure. | SOVEREIGN_YIELDS | Yahoo Finance |
+| `bwx_1M_ret`, `bwx_3M_ret`, `bwx_6M_ret` | SPDR Bloomberg International Treasury Bond ETF | Broad non-US sovereign debt exposure. | SOVEREIGN_YIELDS | Yahoo Finance |
+| `igov_1M_ret`, `igov_3M_ret`, `igov_6M_ret` | iShares International Treasury Bond ETF | Heavy exposure to Eurozone/Japan sovereign bonds. | SOVEREIGN_YIELDS | Yahoo Finance |
