@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'src/config.py'
+      - 'src/data_pipeline.py'
   workflow_dispatch:
 
 jobs:
