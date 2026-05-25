@@ -63,3 +63,12 @@
 | `bndx_1M_ret`, `bndx_3M_ret`, `bndx_6M_ret` | Vanguard Total International Bond ETF | Hedged non-US bonds exposure. | SOVEREIGN_YIELDS | Yahoo Finance |
 | `bwx_1M_ret`, `bwx_3M_ret`, `bwx_6M_ret` | SPDR Bloomberg International Treasury Bond ETF | Broad non-US sovereign debt exposure. | SOVEREIGN_YIELDS | Yahoo Finance |
 | `igov_1M_ret`, `igov_3M_ret`, `igov_6M_ret` | iShares International Treasury Bond ETF | Heavy exposure to Eurozone/Japan sovereign bonds. | SOVEREIGN_YIELDS | Yahoo Finance |
+| `7203t_1M_ret`, `7203t_3M_ret`, `7203t_6M_ret` | Toyota Motor Corp. (7203.T) | Systemic Japanese proxy for global automotive manufacturing. | SYSTEMIC JP EQUITIES | Yahoo Finance |
+| `8035t_1M_ret`, `8035t_3M_ret`, `8035t_6M_ret` | Tokyo Electron Ltd. (8035.T) | Systemic Japanese proxy for global semiconductor equipment manufacturing. | SYSTEMIC JP EQUITIES | Yahoo Finance |
+| `9984t_1M_ret`, `9984t_3M_ret`, `9984t_6M_ret` | SoftBank Group Corp. (9984.T) | Systemic Japanese proxy for global technology investing and telecommunications. | SYSTEMIC JP EQUITIES | Yahoo Finance |
+| `aznl_1M_ret`, `aznl_3M_ret`, `aznl_6M_ret` | AstraZeneca PLC | Systemic UK/EU proxy for global pharmaceuticals and biotechnology. | SYSTEMIC UK EQUITIES | Yahoo Finance |
+| `basde_1M_ret`, `basde_3M_ret`, `basde_6M_ret` | BASF SE | Systemic European proxy for global chemical production and supply chains. | SYSTEMIC EU EQUITIES | Yahoo Finance |
+| `riol_1M_ret`, `riol_3M_ret`, `riol_6M_ret` | Rio Tinto Group | Systemic UK proxy for global mining and raw material extraction. | SYSTEMIC UK EQUITIES | Yahoo Finance |
+| `sapde_1M_ret`, `sapde_3M_ret`, `sapde_6M_ret` | SAP SE | Systemic European proxy for enterprise resource planning (ERP) software. | SYSTEMIC EU EQUITIES | Yahoo Finance |
+| `shell_1M_ret`, `shell_3M_ret`, `shell_6M_ret` | Shell plc | Systemic UK/EU proxy for global integrated energy markets. | SYSTEMIC UK EQUITIES | Yahoo Finance |
+| `siede_1M_ret`, `siede_3M_ret`, `siede_6M_ret` | Siemens AG | Systemic European proxy for heavy industry and manufacturing. | SYSTEMIC EU EQUITIES | Yahoo Finance |
