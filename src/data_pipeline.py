@@ -66,6 +66,24 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     combined_data = master_calendar.join(fred_shifted, how='left')
     imputed_data = combined_data.ffill().dropna(axis=1, how='all').dropna()
     
+    # -------------------------------------------------------------------------
+    # DETERMINISTIC INTERACTION EFFECTS (ECONOMIC RATIOS)
+    # -------------------------------------------------------------------------
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Engineering economic interaction ratios...")
+    
+    # Safely calculate ratios only if both tickers exist in the downloaded data
+    def safe_ratio(num, den, col_name):
+        if num in imputed_data.columns and den in imputed_data.columns:
+            imputed_data[col_name] = imputed_data[num] / imputed_data[den]
+
+    safe_ratio('HG=F', 'GC=F', 'ratio_copper_gold')
+    safe_ratio('HYG', 'LQD', 'ratio_credit_spread')
+    safe_ratio('XLY', 'XLP', 'ratio_consumer_risk')
+    safe_ratio('SPY', 'TLT', 'ratio_risk_on_off')
+    safe_ratio('XLK', 'SPY', 'ratio_tech_dominance')
+    safe_ratio('IGOV', 'TLT', 'ratio_intl_vs_us_bonds')
+    # -------------------------------------------------------------------------
+    
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calculating rolling momentum (Feature Engineering)...")
     windows = [21, 63, 126]
 
@@ -93,18 +111,13 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
             
     features['target_class'] = features['future_6M_return'].apply(categorize_return)
 
-    # Impute NaN in feature columns for ALL rows (training, CV, and live) uniformly.
-    # ffill: last known value forward; bfill: fallback for any leading NaNs.
-    # Applied before splitting so the scaler sees a consistent distribution.
-    feature_cols_for_impute = [c for c in features.columns if c not in ['target_class', 'future_6M_return']]
-    features[feature_cols_for_impute] = features[feature_cols_for_impute].ffill().bfill()
-
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Splitting live and training rows...")
 
     # Separate live rows BEFORE any dropna, so they aren't wiped out
     live_predict_row = features[features['target_class'].isna()].copy()
 
     # Drop rows where target_class is missing (live rows) or any feature is NaN
+    # This correctly removes the 126-day warmup period without leaking future data.
     training_matrix = features.dropna(subset=['target_class']).copy()
     training_matrix = training_matrix.dropna()
 
