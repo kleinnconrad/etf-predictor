@@ -120,12 +120,12 @@ FRED_INDICATORS_UK = [
     'GBRPROINDMISMEI'    # UK Industrial Production
 ]
 
-# Yahoo Finance: International Sovereign Bond Yields
+# Yahoo Finance: International Sovereign Bond Yields (ETF Proxies)
+# Bond ETF prices move inversely to yields, providing an identical momentum signal
 SOVEREIGN_YIELDS = [
-    '^DE10Y-DE',  # Germany 10-Year Bund
-    '^DE2Y-DE',   # Germany 2-Year Schatz
-    '^UK10G-GB',  # UK 10-Year Gilt
-    '^UK2G-GB'    # UK 2-Year Gilt
+    'IGOV',  # iShares International Treasury Bond ETF (Heavy exposure to Eurozone/Japan)
+    'BWX',   # SPDR Bloomberg International Treasury Bond ETF (Broad non-US sovereign debt)
+    'BNDX'   # Vanguard Total International Bond ETF (Hedged non-US bonds)
 ]
 
 # Combine all FRED indicators for the pipeline

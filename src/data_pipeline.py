@@ -14,7 +14,7 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     Fetches macroeconomic data natively using the official FRED API 
     and applies a uniform publication lag.
     """
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating FRED API data download for {len(FRED_INDICATORS)} indicators...")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating FRED API data download for {len(ALL_FRED_INDICATORS)} indicators...")
     
     adjusted_start = pd.to_datetime(start_date) - pd.Timedelta(days=60)
     series_list = []
