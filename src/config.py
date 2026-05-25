@@ -13,7 +13,7 @@ START_DATE = (datetime.today() - timedelta(days=365 * 10)).strftime('%Y-%m-%d')
 # ==========================================
 # 2. VORHERSAGE-ZIEL & ÖKONOMISCHE PARAMETER
 # ==========================================
-TARGET_ETF = 'BBUS'
+TARGET_ETF = 'SPY'
 FORECAST_HORIZON_DAYS = 126    # Prognose für 6 Monate in die Zukunft
 
 ANNUAL_INFLATION_RATE = 0.025  # 2,5 % Basis-Wachstum p.a.
@@ -88,14 +88,48 @@ TICKERS_DE = ['SAP.DE', 'SIE.DE', 'BAS.DE']
 TICKERS_UK = ['SHEL.L', 'AZN.L', 'RIO.L']
 TICKERS_JP = ['7203.T', '9984.T', '8035.T']
 
-# Federal reserve data
+# Federal Reserve Data (US)
 FRED_INDICATORS = [
-    'CPIAUCSL',  # Consumer Price Index for All Urban Consumers (Inflation)
-    'PAYEMS',    # Total Nonfarm Payrolls (Employment)
-    'UNRATE',    # Unemployment Rate
-    'T10Y2Y',    # 10-Year Treasury Constant Maturity Minus 2-Year Treasury Constant Maturity
-    'WALCL'      # Assets: Total Assets: Total Assets (Less Eliminations from Consolidation)
+    'CPIAUCSL',  # US CPI (Inflation)
+    'PAYEMS',    # US Nonfarm Payrolls
+    'UNRATE',    # US Unemployment
+    'T10Y2Y',    # US 10Y-2Y Yield Spread
+    'WALCL'      # US Fed Total Assets
 ]
+
+# FRED: Eurozone & Germany Macro
+FRED_INDICATORS_EU = [
+    'CP00MI15EA20M086NEST', # Euro Area CPI (Inflation)
+    'LRHUTTTTEZM156S',   # Euro Area Unemployment Rate
+    'ECBASSETS',         # ECB Total Assets (Systemic Liquidity)
+    'PRINTO01EZQ661S'    # Euro Area Industrial Production
+]
+
+# FRED: Japan Macro
+FRED_INDICATORS_JP = [
+    'JPNCPIALLMINMEI',   # Japan CPI
+    'LRHUTTTTJPM156S',   # Japan Unemployment Rate
+    'JPNASSETS',         # Bank of Japan Total Assets
+    'JPNPROINDMISMEI'    # Japan Industrial Production
+]
+
+# FRED: UK Macro
+FRED_INDICATORS_UK = [
+    'GBRCPIALLMINMEI',   # UK CPI
+    'LRHUTTTTGBM156S',   # UK Unemployment Rate
+    'GBRPROINDMISMEI'    # UK Industrial Production
+]
+
+# Yahoo Finance: International Sovereign Bond Yields (ETF Proxies)
+# Bond ETF prices move inversely to yields, providing an identical momentum signal
+SOVEREIGN_YIELDS = [
+    'IGOV',  # iShares International Treasury Bond ETF (Heavy exposure to Eurozone/Japan)
+    'BWX',   # SPDR Bloomberg International Treasury Bond ETF (Broad non-US sovereign debt)
+    'BNDX'   # Vanguard Total International Bond ETF (Hedged non-US bonds)
+]
+
+# Combine all FRED indicators for the pipeline
+ALL_FRED_INDICATORS = FRED_INDICATORS + FRED_INDICATORS_EU + FRED_INDICATORS_JP + FRED_INDICATORS_UK
 
 def get_all_tickers():
     """Führt das gesamte Universum für die yfinance-Abfrage zusammen."""
@@ -104,7 +138,8 @@ def get_all_tickers():
         MACRO_INDICATORS + COMMODITIES + AGRI_COMMODITIES + 
         CREDIT_RISK + SECTORS_AND_INDICES + MORE_SECTORS + 
         REAL_ESTATE + CRYPTO + 
-        TICKERS_US + TICKERS_DE + TICKERS_UK + TICKERS_JP
+        TICKERS_US + TICKERS_DE + TICKERS_UK + TICKERS_JP +
+        SOVEREIGN_YIELDS # <-- ADDED HERE
     ))
 
 # ==========================================
