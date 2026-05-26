@@ -13,7 +13,7 @@ START_DATE = (datetime.today() - timedelta(days=365 * 10)).strftime('%Y-%m-%d')
 # ==========================================
 # 2. VORHERSAGE-ZIEL & ÖKONOMISCHE PARAMETER
 # ==========================================
-TARGET_ETF = 'SPY'
+TARGET_ETF = 'IDEV'
 FORECAST_HORIZON_DAYS = 126    # Prognose für 6 Monate in die Zukunft
 
 ANNUAL_INFLATION_RATE = 0.025  # 2,5 % Basis-Wachstum p.a.
