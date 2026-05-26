@@ -67,6 +67,10 @@ $$W_{class} = \log_{10}\left(\frac{N_{majority}}{N_{class}}\right) + 1.0$$
 * Underrepresented classes receive logarithmically scaled, higher penalty weights. 
 * This sensitizes the model to minority classes without generating excessive false alarms.
 
+The calculated weights will be applied in the loss function:
+
+$$Loss_{weighted} = - W_{y_{true}} \cdot \log(P(y_{true} \mid X))$$
+
 ---
 
 ## Risk Management & Model Safeguards
