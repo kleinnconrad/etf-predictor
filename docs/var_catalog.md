@@ -70,3 +70,4 @@
 ```markdown
 | `lrhuttttgbm156s_1M_ret`, `lrhuttttgbm156s_3M_ret`, `lrhuttttgbm156s_6M_ret` | Harmonized Unemployment Rate: Total: All Persons for United Kingdom | Measures the percentage of the labor force that is unemployed in the UK. A key indicator of labor market health and economic activity in the United Kingdom, impacting consumer confidence. | FRED UK MACROECONOMIC INDICATORS | FRED |
 ```
+| `dbxjde_1M_ret`, `dbxjde_3M_ret`, `dbxjde_6M_ret` | Xtrackers MSCI Japan UCITS ETF 1C | This ETF tracks the MSCI Japan Index, providing broad exposure to the performance of large and mid-cap Japanese equities. As the primary target for forecasting, its movement is indicative of the overall health and direction of the Japanese stock market, a major global economy, making it central to the pipeline's predictive efforts. | TARGET ETF - JAPANESE EQUITIES | Yahoo Finance |
