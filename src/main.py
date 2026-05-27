@@ -2,6 +2,7 @@
 
 import os
 import json
+import math
 import argparse
 from datetime import datetime
 import pandas as pd
@@ -21,7 +22,7 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
     
     try:
         # WICHTIG: Im Batch-Modus verhindern wir Data-Leakage! 
-        # Das Modell darf die anderen 49 Ziel-ETFs nicht als Features sehen.
+        # Das Modell darf die anderen Ziel-ETFs nicht als Features sehen.
         if pre_fetched_yahoo is not None:
             if ticker not in pre_fetched_yahoo.columns:
                 raise ValueError(f"Target ETF {ticker} konnte von Yahoo Finance nicht heruntergeladen werden (Delisted/Fehler).")
@@ -79,8 +80,8 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
         print(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR bei Ticker {ticker}: {e}")
         return {"ticker": ticker, "status": "Failed", "error": str(e)}
 
-def execute_batch_processing():
-    """Downloadet Rohdaten einmalig und verarbeitet die ETFs speicherschonend."""
+def execute_batch_processing(runner_id, total_runners):
+    """Downloadet Rohdaten für den zugeteilten Slice und verarbeitet die ETFs speicherschonend."""
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     batch_config_path = os.path.join(project_root, 'config', 'batch_targets.json')
     
@@ -90,18 +91,29 @@ def execute_batch_processing():
     with open(batch_config_path, 'r') as f:
         batch_config = json.load(f)
         
-    tickers = batch_config.get("tickers", [])
+    all_tickers = batch_config.get("tickers", [])
+    
+    # --- SLICING LOGIK FÜR DISTRIBUTED COMPUTE ---
+    chunk_size = math.ceil(len(all_tickers) / total_runners)
+    start_idx = (runner_id - 1) * chunk_size
+    end_idx = start_idx + chunk_size
+    my_tickers = all_tickers[start_idx:end_idx]
     
     print(f"\n" + "="*60)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] BATCH GLOBAL INITIALIZATION")
-    print(f"Starte einmaligen Master-Download für alle {len(tickers)} Ziel-ETFs + Macro Universe...")
+    print(f"RUNNER ID: {runner_id}/{total_runners}")
+    print(f"Verarbeite Block von Index {start_idx} bis {end_idx-1} ({len(my_tickers)} ETFs)")
     print("="*60)
     
-    # Zusammenführen des globalen Macro-Universums mit allen Batch-Zielen
-    global_ticker_universe = list(set(ALL_TICKERS + tickers))
+    if not my_tickers:
+        print("Keine ETFs für diesen Runner übrig. Beende Prozess.")
+        return
+
+    # Zusammenführen des globalen Macro-Universums NUR mit den ETFs dieses spezifischen Runners
+    global_ticker_universe = list(set(ALL_TICKERS + my_tickers))
     
-    # Die zwei einzigen Netzwerk-Anfragen des gesamten Batch-Laufs
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] MASTER-FETCH: Lade Kurse von Yahoo Finance...")
+    # Die zwei einzigen Netzwerk-Anfragen des gesamten Batch-Laufs für diesen Runner
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] MASTER-FETCH: Lade Kurse von Yahoo Finance ({len(global_ticker_universe)} Ticker)...")
     global_raw_yahoo = yf.download(global_ticker_universe, start=START_DATE, end=END_DATE)['Close']
     
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] MASTER-FETCH: Lade makroökonomische Reihen von FRED...")
@@ -111,13 +123,13 @@ def execute_batch_processing():
     
     batch_results = {
         "execution_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "total_processed": len(tickers),
+        "total_processed": len(my_tickers),
         "results": []
     }
     
     # Schleife operiert nun rein lokal im Arbeitsspeicher
-    for idx, ticker in enumerate(tickers, 1):
-        print(f"\nFortschritt: {idx}/{len(tickers)}")
+    for idx, ticker in enumerate(my_tickers, 1):
+        print(f"\nFortschritt Runner {runner_id}: {idx}/{len(my_tickers)}")
         res = run_pipeline_for_ticker(
             ticker=ticker, 
             is_batch=True, 
@@ -126,16 +138,16 @@ def execute_batch_processing():
         )
         batch_results["results"].append(res)
         
-    # JSON-Ergebnisse persistieren
+    # JSON-Ergebnisse spezifisch für diesen Runner persistieren
     output_dir = os.path.join(project_root, 'output')
     os.makedirs(output_dir, exist_ok=True)
-    output_file_path = os.path.join(output_dir, 'latest_batch_results.json')
+    output_file_path = os.path.join(output_dir, f'batch_results_runner_{runner_id}.json')
     
     with open(output_file_path, 'w', encoding='utf-8') as f:
         json.dump(batch_results, f, indent=4)
         
     print(f"\n" + "="*60)
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] BATCH COMPLETE.")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] BATCH COMPLETE (Runner {runner_id}).")
     print(f"Ergebnisse erfolgreich gespeichert unter: {output_file_path}")
     print("="*60)
 
@@ -143,12 +155,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ETF Predictor Pipeline Orchestrator")
     parser.add_argument("--batch", action="store_true", help="Führt die Pipeline im Batch-Modus aus")
     parser.add_argument("--ticker", type=str, help="Single-Run für einen spezifischen Ticker")
+    parser.add_argument("--runner-id", type=int, default=1, help="Die ID des aktuellen Runners (1-basiert)")
+    parser.add_argument("--total-runners", type=int, default=1, help="Die Gesamtzahl der eingesetzten Runner")
     
     args = parser.parse_args()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     if args.batch:
-        execute_batch_processing()
+        execute_batch_processing(args.runner_id, args.total_runners)
     else:
         chosen_ticker = args.ticker if args.ticker else TARGET_ETF
         run_pipeline_for_ticker(chosen_ticker, is_batch=False, timestamp=timestamp)

@@ -1,13 +1,15 @@
 name: Manual ETF Batch Processor
 
 on:
-  workflow_dispatch: # Erlaubt ausschließlich den manuellen Start über die GitHub UI
+  workflow_dispatch:
 
 jobs:
   run-batch:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Zwingend erforderlich, damit der Bot ins Repo pushen darf
+    strategy:
+      max-parallel: 5
+      matrix:
+        runner_id: [1, 2, 3, 4, 5]
 
     steps:
     - name: Checkout Repository
@@ -24,29 +26,72 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run ETF Batch Pipeline
+    - name: Run ETF Batch Pipeline (Distributed)
       env:
-        # Die Keys müssen in den GitHub Repository Secrets hinterlegt sein
         FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
-        # Wir führen die Pipeline im Einzel-Runner-Modus für 200 ETFs aus.
-        # Laufzeit-Prognose: ca. 2 bis 2.5 Stunden (Das Limit von GitHub liegt bei 6 Stunden).
-        python src/main.py --batch
+        python src/main.py --batch --runner-id ${{ matrix.runner_id }} --total-runners 5
 
-    - name: Save to Artifacts Folder & Commit
+    - name: Save Temporary Batch Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: batch-result-${{ matrix.runner_id }}
+        path: output/batch_results_runner_${{ matrix.runner_id }}.json
+        retention-days: 1
+
+  # Finaler Job, der darauf wartet, dass alle 5 Server fertig sind
+  merge-results:
+    needs: run-batch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Download all partial batch results
+      uses: actions/download-artifact@v4
+      with:
+        path: downloaded_artifacts
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Merge JSONs and Commit
       run: |
-        # 1. Erstelle den Ordner, falls er noch nicht existiert
-        mkdir -p artifacts
+        python -c "
+        import json, glob, os
+        final_results = []
+        exec_time = ''
         
-        # 2. Kopiere das Ergebnis aus dem output-Ordner
-        cp output/latest_batch_results.json artifacts/latest_batch_results.json
+        # Iteriere über alle heruntergeladenen Artefakte
+        for f in glob.glob('downloaded_artifacts/**/*.json', recursive=True):
+            with open(f, 'r') as file:
+                data = json.load(file)
+                final_results.extend(data.get('results', []))
+                if not exec_time:
+                    exec_time = data.get('execution_time', '')
+                    
+        # Baue die finale, konsolidierte JSON auf
+        final_output = {
+            'execution_time': exec_time,
+            'total_processed': len(final_results),
+            'results': final_results
+        }
         
-        # 3. Konfiguriere den GitHub-Bot für den Commit
+        # Speichere die Datei direkt in den finalen Ordner
+        os.makedirs('artifacts', exist_ok=True)
+        with open('artifacts/latest_batch_results.json', 'w', encoding='utf-8') as out:
+            json.dump(final_output, out, indent=4)
+        "
+        
+        # Konfiguriere den Git-Bot und pushe die finale Datei
         git config --local user.name "github-actions[bot]"
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        
-        # 4. Pushe die Datei zurück ins Repo (überschreibt die alte Version)
         git add artifacts/latest_batch_results.json
-        git commit -m "Auto-Update: Batch Prediction Results [skip ci]" || echo "Keine neuen Änderungen zum Committen."
+        git commit -m "Auto-Update: Merged Batch Prediction Results [skip ci]" || echo "Keine Änderungen zum Committen gefunden."
         git push
