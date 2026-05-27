@@ -1,0 +1,52 @@
+name: Manual ETF Batch Processor
+
+on:
+  workflow_dispatch: # Erlaubt ausschließlich den manuellen Start über die GitHub UI
+
+jobs:
+  run-batch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Zwingend erforderlich, damit der Bot ins Repo pushen darf
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run ETF Batch Pipeline
+      env:
+        # Die Keys müssen in den GitHub Repository Secrets hinterlegt sein
+        FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: |
+        # Wir führen die Pipeline im Einzel-Runner-Modus für 200 ETFs aus.
+        # Laufzeit-Prognose: ca. 2 bis 2.5 Stunden (Das Limit von GitHub liegt bei 6 Stunden).
+        python src/main.py --batch
+
+    - name: Save to Artifacts Folder & Commit
+      run: |
+        # 1. Erstelle den Ordner, falls er noch nicht existiert
+        mkdir -p artifacts
+        
+        # 2. Kopiere das Ergebnis aus dem output-Ordner
+        cp output/latest_batch_results.json artifacts/latest_batch_results.json
+        
+        # 3. Konfiguriere den GitHub-Bot für den Commit
+        git config --local user.name "github-actions[bot]"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # 4. Pushe die Datei zurück ins Repo (überschreibt die alte Version)
+        git add artifacts/latest_batch_results.json
+        git commit -m "Auto-Update: Batch Prediction Results [skip ci]" || echo "Keine neuen Änderungen zum Committen."
+        git push
