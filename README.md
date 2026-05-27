@@ -16,6 +16,7 @@ This repository contains a machine learning pipeline to forecast the medium-term
 - [Automated Economic Interpretation (LLM)](#automated-economic-interpretation-llm)
 - [Configuration (`config.py`)](#configuration-configpy)
 - [Data Source & Macro Universe](#data-source--macro-universe)
+- [Automated Batch Processing](#automated-batch-processing)
 - [Execution (Local & Development)](#execution-local--development)
 - [Cloud Deployment (Docker & Railway)](#cloud-deployment-docker--railway)
 
@@ -132,6 +133,15 @@ Training a model on highly correlated equities causes multicollinearity, providi
 To prevent lookahead bias, **FRED economic data** is structurally shifted forward by a 30-day publication lag before merging with the daily trading calendar. The pipeline calculates the 1-month, 3-month, and 6-month momentum for these combined base assets and economic indicators, yielding a final training matrix of approximately 150 distinct macroeconomic variables.
 
 ---
+
+## Automated Batch Processing
+
+The pipeline supports an automated batch execution mode for processing large universes of ETFs sequentially.
+
+* **Intelligent Target Selection:** The script `scripts/build_etf_batch.py` curates the target universe. It filters a pre-defined multi-asset seed list based on strict institutional criteria: minimum historical age (10 years) to ensure full Z-score scaling validity, and a minimum average daily volume (ADV) threshold to guarantee liquidity and prevent pricing gaps.
+* **Orchestration (`src/main.py --batch`):** The orchestrator manages the execution loop for the 50 validated targets.
+* **Resource Efficiency:** To prevent API rate-limiting and maximize execution speed, the orchestrator performs a single, global pre-fetch of all required Yahoo Finance pricing data and FRED macroeconomic indicators before initiating the local, memory-bound computation loop.
+* **Data Persistence:** The batch runner aggregates the core metrics (prediction class, probabilities, KS-cutoff, and Out-of-Fold accuracy) for all processed targets and persists them as a structured array in `/output/latest_batch_results.json`. This file is overwritten upon each execution, providing a clean, point-in-time interface for downstream algorithmic rebalancing or database ingestion.
 
 ## Execution (Local & Development)
 

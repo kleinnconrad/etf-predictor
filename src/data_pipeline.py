@@ -49,18 +49,30 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: FRED API data download complete.")
     return fred_shifted
 
-def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, forecast_horizon=126, **kwargs):
+def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, forecast_horizon=126, pre_fetched_yahoo=None, pre_fetched_fred=None, **kwargs):
     """
     Ingests, merges, and engineers features for the trading calendar.
+    Nutzt vorab geladene DataFrames im Batch-Modus, um Mehrfach-Downloads zu verhindern.
     """
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating Yahoo Finance download...")
-    raw_yahoo = yf.download(all_tickers, start=start_date, end=end_date)['Close']
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Yahoo Finance download complete.")
+    
+    # 1. Yahoo Finance Ingestion (Lokal oder via Netzwerk)
+    if pre_fetched_yahoo is not None:
+        raw_yahoo = pre_fetched_yahoo.copy()
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Using pre-fetched Yahoo Finance data.")
+    else:
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating Yahoo Finance download...")
+        raw_yahoo = yf.download(all_tickers, start=start_date, end=end_date)['Close']
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Yahoo Finance download complete.")
     
     master_calendar = raw_yahoo.dropna(subset=[target_ticker])
     
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calling FRED data fetch...")
-    fred_shifted = fetch_and_lag_fred_data(start_date, end_date)
+    # 2. FRED Ingestion (Lokal oder via Netzwerk)
+    if pre_fetched_fred is not None:
+        fred_shifted = pre_fetched_fred.copy()
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Using pre-fetched FRED data.")
+    else:
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calling FRED data fetch...")
+        fred_shifted = fetch_and_lag_fred_data(start_date, end_date)
     
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Merging matrices and forward-filling...")
     combined_data = master_calendar.join(fred_shifted, how='left')
