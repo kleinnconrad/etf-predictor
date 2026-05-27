@@ -243,7 +243,11 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     print(f"Vorhersage: {pred_label}")
     print(f"Wahrscheinlichkeiten: Down={prob_down:.2%}, Flat={prob_flat:.2%}, Up={prob_up:.2%}\n")
 
+    # WICHTIG: Berechnung der Feature-Gewichte fuer den Export
     importance = np.mean(np.abs(model.coef_), axis=0)
+    feature_names = selected_features.tolist()
+    feature_weights = {feat: float(weight) for feat, weight in zip(feature_names, importance)}
+    
     coeff_df = pd.DataFrame({
         'Praediktor': selected_features,
         'Einfluss (Mean Absolut)': importance
@@ -319,5 +323,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         "cm_fig_cv": fig_cm_cv,
         "cv_accuracy": cv_accuracy,
         "is_valid_quality": is_valid_quality,
-        "ks_cutoff": optimal_down_threshold
+        "ks_cutoff": optimal_down_threshold,
+        "selected_features": feature_names,
+        "feature_weights": feature_weights
     }

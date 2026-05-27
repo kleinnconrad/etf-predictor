@@ -9,6 +9,10 @@ from config import ALL_FRED_INDICATORS
 from datetime import datetime
 import time
 import os
+import socket
+
+# Globaler Sicherheits-Timeout für die API
+socket.setdefaulttimeout(15.0)
 
 def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     """
@@ -16,7 +20,7 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     and applies a uniform publication lag. Gracefully skips missing series.
     Includes rate-limiting and DateTime index enforcement to prevent shift() errors.
     """
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating FRED API data download for {len(ALL_FRED_INDICATORS)} indicators...")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating FRED API data download for {len(ALL_FRED_INDICATORS)} indicators...", flush=True)
     
     adjusted_start = pd.to_datetime(start_date) - pd.Timedelta(days=60)
     series_list = []
@@ -29,7 +33,7 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     fred = Fred(api_key=api_key)
     
     for indicator in ALL_FRED_INDICATORS:
-        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Fetching {indicator} via API...")
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Fetching {indicator} via API...", flush=True)
         try:
             series = fred.get_series(indicator, observation_start=adjusted_start, observation_end=end_date)
             df = pd.DataFrame(series, columns=[indicator])
@@ -40,19 +44,22 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
             time.sleep(0.5) 
             
         except Exception as e:
-            print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE WARNING: Failed to fetch {indicator}. Skipping. Details: {e}")
+            print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE WARNING: Failed to fetch {indicator}. Details: {e}", flush=True)
             failed_tickers.append(indicator)
             time.sleep(1) # Extra cooldown on error
             continue 
             
-    # Print summary of failures if any occurred
+    # =========================================================================
+    # HARTE FEHLERPRÜFUNG (ANTI DATA-LEAKAGE)
+    # =========================================================================
     if failed_tickers:
-        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE SUMMARY: {len(failed_tickers)} FRED indicators failed and were skipped:")
-        print(f"  [{datetime.now().strftime('%H:%M:%S')}] DROPPED TICKERS: {', '.join(failed_tickers)}")
+        # Das Skript MUSS abstürzen, wenn FRED-Daten fehlen, sonst lernt der Batch-Lauf 
+        # auf einem kleineren/falschen Feature-Set als dein lokaler Test!
+        raise ValueError(f"CRITICAL: FRED API Timeout für {failed_tickers}. Lokale und Batch-Features wären asynchron!")
             
     fred_raw = pd.concat(series_list, axis=1)
 
-    # API Crash Protection: Ensure data is not completely empty due to rate limits
+    # API Crash Protection: Ensure data is not completely empty
     if fred_raw.empty:
         raise ValueError("FRED API lieferte eine komplett leere Matrix. Höchstwahrscheinlich wurde das Rate-Limit überschritten!")
 
@@ -62,7 +69,7 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     # Safe shifting
     fred_shifted = fred_raw.shift(freq=pd.Timedelta(days=lag_days))
     
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: FRED API data download complete.")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: FRED API data download complete.", flush=True)
     return fred_shifted
 
 def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, forecast_horizon=126, pre_fetched_yahoo=None, pre_fetched_fred=None, **kwargs):
@@ -74,30 +81,32 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     # 1. Yahoo Finance Ingestion (Lokal oder via Netzwerk)
     if pre_fetched_yahoo is not None:
         raw_yahoo = pre_fetched_yahoo.copy()
-        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Using pre-fetched Yahoo Finance data.")
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Using pre-fetched Yahoo Finance data.", flush=True)
     else:
-        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating Yahoo Finance download...")
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating Yahoo Finance download...", flush=True)
         raw_yahoo = yf.download(all_tickers, start=start_date, end=end_date)['Close']
-        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Yahoo Finance download complete.")
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Yahoo Finance download complete.", flush=True)
     
     master_calendar = raw_yahoo.dropna(subset=[target_ticker])
     
     # 2. FRED Ingestion (Lokal oder via Netzwerk)
     if pre_fetched_fred is not None:
         fred_shifted = pre_fetched_fred.copy()
-        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Using pre-fetched FRED data.")
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Using pre-fetched FRED data.", flush=True)
     else:
-        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calling FRED data fetch...")
+        print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calling FRED data fetch...", flush=True)
         fred_shifted = fetch_and_lag_fred_data(start_date, end_date)
     
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Merging matrices and forward-filling...")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Merging matrices and forward-filling...", flush=True)
     combined_data = master_calendar.join(fred_shifted, how='left')
-    imputed_data = combined_data.ffill().dropna(axis=1, how='all').dropna()
+    
+    # Nutzt die neue Pandas Syntax, um FutureWarning zu vermeiden
+    imputed_data = combined_data.ffill().infer_objects(copy=False).dropna(axis=1, how='all').dropna()
     
     # -------------------------------------------------------------------------
     # DETERMINISTIC INTERACTION EFFECTS (ECONOMIC RATIOS)
     # -------------------------------------------------------------------------
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Engineering economic interaction ratios...")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Engineering economic interaction ratios...", flush=True)
     
     # Safely calculate ratios only if both tickers exist in the downloaded data
     def safe_ratio(num, den, col_name):
@@ -112,7 +121,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     safe_ratio('IGOV', 'TLT', 'ratio_intl_vs_us_bonds')
     # -------------------------------------------------------------------------
     
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calculating rolling momentum (Feature Engineering)...")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calculating rolling momentum (Feature Engineering)...", flush=True)
     windows = [21, 63, 126]
 
     # Build all columns at once to avoid DataFrame fragmentation
@@ -139,12 +148,12 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
             
     features['target_class'] = features['future_6M_return'].apply(categorize_return)
 
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Splitting live and training rows...")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Splitting live and training rows...", flush=True)
 
     # Separate live rows BEFORE any dropna, so they aren't wiped out
     live_predict_row = features[features['target_class'].isna()].copy()
     
-    # NEU: Isoliere ausschließlich den absolut aktuellsten Handelstag (Heute)
+    # Isoliere ausschließlich den absolut aktuellsten Handelstag (Heute)
     live_predict_row = live_predict_row.iloc[[-1]]
 
     # Drop rows where target_class is missing (live rows) or any feature is NaN
@@ -152,7 +161,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     training_matrix = features.dropna(subset=['target_class']).copy()
     training_matrix = training_matrix.dropna()
 
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Training rows: {len(training_matrix)}, Live rows: {len(live_predict_row)}")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Training rows: {len(training_matrix)}, Live rows: {len(live_predict_row)}", flush=True)
 
     if live_predict_row.empty:
         raise ValueError(
@@ -160,13 +169,13 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
             "which means end_date may not be recent enough to produce unlabelled rows."
         )
 
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Scaling features...")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Scaling features...", flush=True)
     feature_cols = [c for c in training_matrix.columns if c not in ['target_class', 'future_6M_return']]
     
     # =========================================================================
     # DETERMINISTIC WINSORIZATION (CLIPPING OUTLIERS)
     # =========================================================================
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Clipping outliers at 1st and 99th percentiles...")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Clipping outliers at 1st and 99th percentiles...", flush=True)
     
     # 1. Berechne die harten Limits NUR auf Basis der Trainingsdaten
     lower_bounds = training_matrix[feature_cols].quantile(0.01)
@@ -193,5 +202,5 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
         index=live_predict_row.index
     )
     
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Data preparation complete.")
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Data preparation complete.", flush=True)
     return X_train_scaled, y_train, X_live_scaled
