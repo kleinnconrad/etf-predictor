@@ -4,150 +4,89 @@ import yfinance as yf
 import pandas as pd
 import json
 import os
+import time
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# 1. Das massiv erweiterte Seed-Universum (ca. 350 Ticker)
-SEED_UNIVERSE = {
-    "US_Broad_Large": [
-        "SPY", "QQQ", "DIA", "IWM", "VOO", "VTI", "IVV", "RSP", "SCHX", "VV", 
-        "ITOT", "IWB", "IWD", "IWF", "IWY", "IWX", "SPYG", "SPYV", "VUG", "VTV",
-        "SCHG", "SCHV", "OEF", "RPG", "RPV", "MGK", "MGV", "MGC", "IUSG", "IUSV"
-    ],
-    "US_Mid_Small": [
-        "MDY", "IJH", "IJR", "SCHA", "SCHB", "VBR", "VBK", "VB", "VO", "VOE", 
-        "VOT", "IWN", "IWO", "IWC", "SLY", "SLYG", "SLYV", "MDYG", "MDYV", "XMHQ",
-        "RWJ", "XMLV", "XSLV", "FNDX", "FNDA", "FNDB", "PRFZ", "SPSM", "DES", "DON"
-    ],
-    "Factors_Dividends": [
-        "VIG", "VYM", "SDY", "QUAL", "VLUE", "MTUM", "USMV", "SCHD", "DGRO", "DVY", 
-        "HDV", "FVD", "NOBL", "SPLV", "SPHD", "RDIV", "PEY", "DTD", "DON", "DES",
-        "DHS", "DLN", "DGRW", "FDVV", "VDC", "COWZ", "SYLD", "PKW", "DEF", "QDF"
-    ],
-    "Sectors_Tech_Comm": [
-        "XLK", "XLC", "SMH", "VGT", "VOX", "IYW", "IGV", "SOXX", "FTEC", "IXN", 
-        "IGN", "IGM", "QTEC", "SKYY", "CIBR", "HACK", "FDN", "PNQI", "TECL", "SOXL"
-    ],
-    "Sectors_Health_Bio": [
-        "XLV", "VHT", "IBB", "XBI", "IHI", "IYH", "FHLC", "PJP", "IHE", "IXJ", 
-        "RXD", "CURE", "SBIO", "BBC", "BBP"
-    ],
-    "Sectors_Finance_RealEstate": [
-        "XLF", "VFH", "KRE", "IYF", "KBE", "IAI", "IAT", "EUFN", "IXG", "FNCL", 
-        "VNQ", "SCHH", "IYR", "XLRE", "REET", "RWR", "ICF", "FREL", "USRT", "MORT", 
-        "REM", "KBWY", "ROIC", "REZ", "FRI"
-    ],
-    "Sectors_Energy_Materials": [
-        "XLE", "VDE", "XOP", "OIH", "IYE", "FENY", "IXC", "FCG", "NLR", "PXE", 
-        "XLB", "VAW", "XME", "IYM", "FMAT", "GDX", "GDXJ", "SIL", "SILJ", "COPX", 
-        "REMX", "PICK", "LIT", "URNM", "URA"
-    ],
-    "Sectors_Industrials_Consumer": [
-        "XLI", "VIS", "IYJ", "FIDU", "EXI", "ITA", "JETS", "PPA", "XAR", "XTN", 
-        "XLY", "VCR", "IYC", "FDIS", "RXI", "XRT", "PEJ", "PBS", "XLP", "VDC", 
-        "IYK", "FSTA", "KXI", "PBJ"
-    ],
-    "Sectors_Defensive": [
-        "XLU", "VPU", "IDU", "FUTY", "JXI"
-    ],
-    "International_Developed": [
-        "EFA", "VEA", "IEFA", "SCHF", "EZU", "VGK", "EWJ", "EWC", "EWU", "EWG", 
-        "EWH", "EWA", "EWI", "EWQ", "EWP", "EWL", "EWD", "EWN", "EWS", "EFV", 
-        "EFG", "HEDJ", "DXJ", "HEFA", "EUDG", "DOO", "DBEF", "DBJP", "FNDF"
-    ],
-    "International_Emerging": [
-        "EEM", "VWO", "IEMG", "MCHI", "INDA", "EWZ", "EWT", "EWY", "FXI", "KWEB", 
-        "ASHR", "EPHE", "EIDO", "THD", "EWM", "EZA", "TUR", "EWW", "ARGT", "ECH", 
-        "EPU", "EPU", "ILF", "GMF", "CQQQ", "CHIQ", "EPI", "INDY"
-    ],
-    "Fixed_Income_US_Treasury": [
-        "TLT", "IEF", "SHY", "GOVT", "BIL", "SHV", "VGIT", "VGLT", "VGSH", "SCHO", 
-        "SCHR", "SPTL", "TLO", "EDV", "ZROZ", "IEI", "TLH", "PLW"
-    ],
-    "Fixed_Income_Corp_HighYield": [
-        "LQD", "HYG", "VCIT", "VCSH", "JNK", "IGSB", "IGIB", "USIG", "SPSB", "SPIB", 
-        "SPLB", "SJNK", "FALN", "ANGL", "HYD", "CWB", "PHB", "HYLB"
-    ],
-    "Fixed_Income_Broad_Muni": [
-        "BND", "AGG", "MBB", "MUB", "BSV", "BIV", "BLV", "SPAB", "SCHZ", "BNDW", 
-        "FLOT", "SRLN", "TIP", "VTIP", "STIP", "SCHP", "TFI", "NYF", "CMF", "SUB"
-    ],
-    "Fixed_Income_International": [
-        "BNDX", "VWOB", "IGOV", "BWX", "EMB", "PCY", "EBND", "LEMB"
-    ],
-    "Commodities_Broad": [
-        "GLD", "SLV", "USO", "UNG", "DBA", "PDBC", "GSG", "CPER", "IAU", "PPLT", 
-        "PALL", "GLTR", "DBC", "BNO", "CORN", "WEAT", "SOYB", "SGOL", "SIVR", 
-        "BAR", "CMDY", "COM", "FTGC", "GCC", "GSP", "DJP", "RJI", "USCI", "JJC"
-    ]
-}
-
-# 2. Filter-Metriken
-MIN_YEARS_HISTORY = 10
-MIN_AVG_DAILY_VOLUME = 1000000
-TARGET_BATCH_SIZE = 200  # Angehoben auf 200
+# 1. Kalibrierte Metriken für Europa
+MIN_YEARS_HISTORY = 5  # 5 Jahre (ca. 1250 Handelstage) sind ausreichend für ML
+MIN_AVG_DAILY_TURNOVER_EUR = 1000000  # 1 Million Euro täglicher Handelsumsatz
 
 def check_etf_eligibility(ticker):
-    """Prüft, ob der ETF alt genug und liquide genug für die Pipeline ist."""
-    try:
-        etf = yf.Ticker(ticker)
-        hist = etf.history(period="max")
-        
-        if hist.empty:
-            return False, "Keine Datenbank-Einträge."
+    """Prüft, ob der ETF alt genug und liquide genug (in EUR Umsatz) ist."""
+    # Wir geben yfinance bis zu 3 Versuche (falls die API kurzzeitig blockt)
+    for attempt in range(3):
+        try:
+            etf = yf.Ticker(ticker)
+            hist = etf.history(period="max")
+            
+            if hist.empty:
+                time.sleep(1) # Kurz warten vor dem nächsten Versuch
+                continue
 
-        # 1. Check: Alter des ETFs
-        first_date = hist.index[0].tz_localize(None)
-        cutoff_date = datetime.now() - timedelta(days=365 * MIN_YEARS_HISTORY)
-        
-        if first_date > cutoff_date:
-            return False, f"Zu jung (Start: {first_date.strftime('%Y-%m-%d')})"
+            # 1. Check: Alter des ETFs
+            first_date = hist.index[0].tz_localize(None)
+            cutoff_date = datetime.now() - timedelta(days=365 * MIN_YEARS_HISTORY)
+            
+            if first_date > cutoff_date:
+                return ticker, False, f"Zu jung (Start: {first_date.strftime('%Y-%m')})"
 
-        # 2. Check: Liquidität (Durchschnittliches Volumen der letzten 60 Tage)
-        recent_volume = hist['Volume'].tail(60).mean()
-        if recent_volume < MIN_AVG_DAILY_VOLUME:
-            return False, f"Zu illiquide (Volumen: {recent_volume:,.0f})"
+            # 2. Check: Echte Liquidität (Umsatz in Euro, nicht nur Stückzahl)
+            recent_data = hist.tail(60)
+            # Umsatz = Gehandelte Stücke * Schlusskurs
+            avg_turnover = (recent_data['Volume'] * recent_data['Close']).mean()
+            
+            if avg_turnover < MIN_AVG_DAILY_TURNOVER_EUR:
+                return ticker, False, f"Zu illiquide (Umsatz: {avg_turnover/1000000:.1f} Mio. €)"
 
-        return True, "Bestanden"
-        
-    except Exception as e:
-        return False, f"API Fehler: {str(e)}"
+            return ticker, True, "Bestanden"
+            
+        except Exception as e:
+            time.sleep(1)
+            continue
+            
+    return ticker, False, "API Timeout oder kein Handel auf Xetra"
 
 def main():
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Starte dynamische Selektion von {TARGET_BATCH_SIZE} ETFs...")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    seed_file_path = os.path.join(project_root, 'config', 'all_etfs_seed.txt')
+    
+    if not os.path.exists(seed_file_path):
+        print(f"Fehler: Seed-Datei nicht gefunden unter {seed_file_path}")
+        return
+
+    with open(seed_file_path, 'r') as f:
+        all_tickers = [line.strip() for line in f if line.strip()]
+        
+    print("\n" + "="*60)
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] STARTE KALIBRIERTES XETRA-SCREENING")
+    print(f"Bedingungen: > {MIN_YEARS_HISTORY} Jahre Historie UND > 1 Mio. € Tagesumsatz")
+    print(f"Prüfe {len(all_tickers)} Ticker (Rate-Limited, max 10 Threads)...")
+    print("="*60 + "\n")
     
     valid_etfs = []
-    category_queues = {cat: list(tickers) for cat, tickers in SEED_UNIVERSE.items()}
     
-    # Round-Robin Logik, um eine extrem ausgeglichene Diversifikation zu garantieren
-    while len(valid_etfs) < TARGET_BATCH_SIZE:
-        added_in_round = False
+    # Auf 10 Threads gedrosselt, um Yahoo Finance nicht zu verärgern
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(check_etf_eligibility, ticker): ticker for ticker in all_tickers}
         
-        for category, queue in category_queues.items():
-            if len(valid_etfs) >= TARGET_BATCH_SIZE:
-                break
-                
-            if queue:
-                ticker = queue.pop(0)  # Nimm den ersten ETF aus der Kategorie
-                print(f"Prüfe {ticker} ({category})...", end=" ")
-                is_valid, reason = check_etf_eligibility(ticker)
-                
-                if is_valid:
-                    valid_etfs.append(ticker)
-                    added_in_round = True
-                    print(f"[OK] - Status: {len(valid_etfs)}/{TARGET_BATCH_SIZE}")
-                else:
-                    print(f"[REJECTED] - {reason}")
-                    
-        # Abbruchbedingung, falls alle Listen leer sind, aber das Ziel nicht erreicht wurde
-        if not added_in_round and all(len(q) == 0 for q in category_queues.values()):
-            print("\nWARNUNG: Seed-Universum ausgeschöpft, bevor das Target erreicht wurde.")
-            break
-                
-    print("\n" + "="*40)
-    print(f"Selektion abgeschlossen. {len(valid_etfs)} ETFs validiert.")
+        for idx, future in enumerate(as_completed(futures), 1):
+            ticker, is_valid, reason = future.result()
+            
+            if is_valid:
+                valid_etfs.append(ticker)
+                print(f"[{idx:04d}/{len(all_tickers)}] [OK] {ticker} (Target erreicht!)")
+            else:
+                print(f"[{idx:04d}/{len(all_tickers)}] [REJECTED] {ticker} - {reason}")
+
+    valid_etfs.sort()
+
+    print("\n" + "="*60)
+    print(f"SELEKTION ABGESCHLOSSEN!")
+    print(f"{len(valid_etfs)} hochliquide, bewährte ETFs stehen für das Modell bereit.")
+    print("="*60)
     
-    # 3. Speichern der Batch-Liste
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config')
+    output_dir = os.path.join(project_root, 'config')
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, 'batch_targets.json')
     

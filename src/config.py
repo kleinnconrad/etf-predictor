@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 # ==========================================
 END_DATE = datetime.today().strftime('%Y-%m-%d')
 # 10 Jahre Historie für saubere 126-Tage-Features und genug Trainingsdaten
-START_DATE = (datetime.today() - timedelta(days=365 * 10)).strftime('%Y-%m-%d')
+START_DATE = (datetime.today() - timedelta(days=365 * 5.5)).strftime('%Y-%m-%d')
 
 # ==========================================
 # 2. VORHERSAGE-ZIEL & ÖKONOMISCHE PARAMETER

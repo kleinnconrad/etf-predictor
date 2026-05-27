@@ -24,6 +24,7 @@ I specifically chose to forecast macro ETFs rather than individual equities, fut
 - [Automated Economic Interpretation (LLM)](#automated-economic-interpretation-llm)
 - [Configuration (`config.py`)](#configuration-configpy)
 - [Data Source & Macro Universe](#data-source--macro-universe)
+- [Target ETF List](#target-etf-list)
 - [Automated Batch Processing](#automated-batch-processing)
 - [Execution (Local & Development)](#execution-local--development)
 - [Cloud Deployment (Docker & Railway)](#cloud-deployment-docker--railway)
@@ -139,6 +140,23 @@ Training a model on highly correlated equities causes multicollinearity, providi
 * **Hard Macroeconomics (FRED):** Realized inflation (CPI), employment metrics (Nonfarm Payrolls, Unemployment Rate), systemic liquidity (Central Bank Assets), and leading recessionary indicators (10Y-2Y Treasury Spread) across major industrial nations.
 
 To prevent lookahead bias, **FRED economic data** is structurally shifted forward by a 30-day publication lag before merging with the daily trading calendar. The pipeline calculates the 1-month, 3-month, and 6-month momentum for these combined base assets and economic indicators, yielding a final training matrix of approximately 150 distinct macroeconomic variables.
+
+---
+
+## Target ETF List
+
+**1. The Foundation: Xetra T7 Dump**
+The process begins with the official "T7 All Tradable Instruments" CSV export from the Frankfurt Stock Exchange (Xetra). This provides a complete, unadulterated snapshot of the European market.
+
+**2. Seed Extraction (`scripts/generate_seed.py`)**
+This script parses the raw T7 dump, isolating only ETFs and ETCs actively traded in Euro (EUR). It automatically maps the official exchange mnemonics (e.g., `SXR8`) to their corresponding Yahoo Finance tickers by appending the Xetra suffix (e.g., `SXR8.DE`). The output is a comprehensive master list of approximately 3,000 European tickers (`config/all_etfs_seed.txt`).
+
+**3. Institutional Filtering (`scripts/build_etf_batch.py`)**
+To separate high-quality assets from illiquid or newly launched funds, this script deploys a rate-limited, multithreaded engine to evaluate all ~3,000 tickers via the Yahoo Finance API against strict institutional criteria:
+* **Minimum History (5 Years):** Ensures the model has sufficient data points (~1,250 trading days) to identify statistically significant patterns, while specifically capturing the current macroeconomic regime (interest rates, inflation).
+* **High Liquidity (> €1M Daily Turnover):** Evaluates the *actual traded volume in Euro* (Volume × Close Price), strictly filtering out illiquid assets to guarantee real-world tradeability without severe spread slippage.
+
+The surviving universe (typically 200–400 premium UCITS ETFs) is finally compiled into `config/batch_targets.json`. This file serves as the definitive, dynamic target list for the automated GitHub Actions ML pipeline.
 
 ---
 

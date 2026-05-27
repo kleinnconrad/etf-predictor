@@ -7,9 +7,9 @@ jobs:
   run-batch:
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 5
+      max-parallel: 20
       matrix:
-        runner_id: [1, 2, 3, 4, 5]
+        runner_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 
     steps:
     - name: Checkout Repository
@@ -31,7 +31,7 @@ jobs:
         FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
-        python src/main.py --batch --runner-id ${{ matrix.runner_id }} --total-runners 5
+        python src/main.py --batch --runner-id ${{ matrix.runner_id }} --total-runners 20
 
     - name: Save Temporary Batch Artifact
       uses: actions/upload-artifact@v4
@@ -40,7 +40,7 @@ jobs:
         path: output/batch_results_runner_${{ matrix.runner_id }}.json
         retention-days: 1
 
-  # Finaler Job, der darauf wartet, dass alle 5 Server fertig sind
+  # Finaler Job, der darauf wartet, dass alle 20 Server fertig sind
   merge-results:
     needs: run-batch
     runs-on: ubuntu-latest
@@ -95,9 +95,9 @@ jobs:
         
         # Füge die Datei hinzu und committe
         git add artifacts/latest_batch_results.json
-        git commit -m "Auto-Update: Merged Batch Prediction Results [skip ci]" || echo "Keine Änderungen zum Committen gefunden."
+        git commit -m "Auto-Update: Merged 20-Runner Batch Results [skip ci]" || echo "Keine Änderungen zum Committen gefunden."
         
-        # NEU: Hole die neuesten Änderungen vom aktuellen Branch und lege den Commit oben drauf
+        # Hole die neuesten Änderungen vom aktuellen Branch und lege den Commit oben drauf
         git pull --rebase origin ${{ github.ref_name }}
         
         # Pushe sicher zurück
