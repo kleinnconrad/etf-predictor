@@ -89,9 +89,16 @@ jobs:
             json.dump(final_output, out, indent=4)
         "
         
-        # Konfiguriere den Git-Bot und pushe die finale Datei
+        # Konfiguriere den Git-Bot
         git config --local user.name "github-actions[bot]"
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Füge die Datei hinzu und committe
         git add artifacts/latest_batch_results.json
         git commit -m "Auto-Update: Merged Batch Prediction Results [skip ci]" || echo "Keine Änderungen zum Committen gefunden."
-        git push
+        
+        # NEU: Hole die neuesten Änderungen vom aktuellen Branch und lege den Commit oben drauf
+        git pull --rebase origin ${{ github.ref_name }}
+        
+        # Pushe sicher zurück
+        git push origin HEAD:${{ github.ref_name }}
