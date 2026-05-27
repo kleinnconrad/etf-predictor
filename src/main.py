@@ -4,6 +4,8 @@ import os
 import json
 import math
 import argparse
+import random
+import time
 from datetime import datetime
 import pandas as pd
 import yfinance as yf
@@ -82,6 +84,14 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
 
 def execute_batch_processing(runner_id, total_runners):
     """Downloadet Rohdaten für den zugeteilten Slice und verarbeitet die ETFs speicherschonend."""
+    
+    # === ANTI API-BAN JITTER FÜR 20 RUNNER ===
+    # Wir verteilen die 20 Server jetzt über 3 Minuten (180s), um FRED und Yahoo zu schonen
+    sleep_time = random.uniform(1.0, 180.0)
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Runner {runner_id}/{total_runners} wartet {sleep_time:.1f} Sekunden (Anti-429 Jitter)...")
+    time.sleep(sleep_time)
+    # =========================================
+
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     batch_config_path = os.path.join(project_root, 'config', 'batch_targets.json')
     

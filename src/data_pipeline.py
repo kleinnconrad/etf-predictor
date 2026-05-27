@@ -7,12 +7,14 @@ from sklearn.preprocessing import StandardScaler
 from fredapi import Fred
 from config import ALL_FRED_INDICATORS
 from datetime import datetime
+import time
 import os
 
 def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     """
     Fetches macroeconomic data natively using the official FRED API 
     and applies a uniform publication lag. Gracefully skips missing series.
+    Includes rate-limiting and DateTime index enforcement to prevent shift() errors.
     """
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Initiating FRED API data download for {len(ALL_FRED_INDICATORS)} indicators...")
     
@@ -33,9 +35,14 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
             df = pd.DataFrame(series, columns=[indicator])
             df.index.name = 'DATE'
             series_list.append(df[indicator])
+            
+            # Rate-Limiting Protection (120 req/min limit on FRED)
+            time.sleep(0.5) 
+            
         except Exception as e:
             print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE WARNING: Failed to fetch {indicator}. Skipping. Details: {e}")
             failed_tickers.append(indicator)
+            time.sleep(1) # Extra cooldown on error
             continue 
             
     # Print summary of failures if any occurred
@@ -44,6 +51,15 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
         print(f"  [{datetime.now().strftime('%H:%M:%S')}] DROPPED TICKERS: {', '.join(failed_tickers)}")
             
     fred_raw = pd.concat(series_list, axis=1)
+
+    # API Crash Protection: Ensure data is not completely empty due to rate limits
+    if fred_raw.empty:
+        raise ValueError("FRED API lieferte eine komplett leere Matrix. Höchstwahrscheinlich wurde das Rate-Limit überschritten!")
+
+    # Type Enforcement: Force index to be DateTime to prevent ".shift() Got type Index" errors
+    fred_raw.index = pd.to_datetime(fred_raw.index)
+    
+    # Safe shifting
     fred_shifted = fred_raw.shift(freq=pd.Timedelta(days=lag_days))
     
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: FRED API data download complete.")
