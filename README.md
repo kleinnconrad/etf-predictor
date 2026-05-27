@@ -2,6 +2,14 @@
 
 This repository contains a machine learning pipeline to forecast the medium-term market development of a target ETF (default: SPY). The model classifies the future market state into three discrete classes: **Up**, **Down**, and **Flat**. The statistical foundation is a Multinomial Logistic Regression (Softmax).
 
+## Motivation for ETF forecasting
+
+I specifically chose to forecast macro ETFs rather than individual equities, futures, or crypto assets for the following reasons:
+
+* **Superior Signal-to-Noise Ratio:** Individual stocks are highly vulnerable to idiosyncratic risks (earnings misses, management scandals, lawsuits) which are statistically unpredictable for retail investors. ETFs represent a broad cross-section of assets, naturally smoothing out these singular shocks. What remains is systemic market movement, which can be far more reliably modeled using macroeconomic indicators.
+* **Classification over Exact Pricing:** Predicting exact future asset prices (regression) is notoriously prone to overfitting and noise. This pipeline embraces the reality of available retail data by focusing purely on market regime classification (**Up, Down, Flat**). This creates a fundamentally more robust and honest prediction model.
+* **A Different Playing Field:** While the open-source and retail algo-trading space is heavily saturated with volatile day-trading bots for crypto and single stocks, systematic macroeconomic ETF rotation remains an underserved niche. This project aims to provide a stable, long-term analytical tool rather than a high-frequency trading gamble.
+
 ## Table of Contents
 
 - [Model Architecture](#model-architecture)
@@ -16,6 +24,7 @@ This repository contains a machine learning pipeline to forecast the medium-term
 - [Automated Economic Interpretation (LLM)](#automated-economic-interpretation-llm)
 - [Configuration (`config.py`)](#configuration-configpy)
 - [Data Source & Macro Universe](#data-source--macro-universe)
+- [Automated Batch Processing](#automated-batch-processing)
 - [Execution (Local & Development)](#execution-local--development)
 - [Cloud Deployment (Docker & Railway)](#cloud-deployment-docker--railway)
 
@@ -132,6 +141,15 @@ Training a model on highly correlated equities causes multicollinearity, providi
 To prevent lookahead bias, **FRED economic data** is structurally shifted forward by a 30-day publication lag before merging with the daily trading calendar. The pipeline calculates the 1-month, 3-month, and 6-month momentum for these combined base assets and economic indicators, yielding a final training matrix of approximately 150 distinct macroeconomic variables.
 
 ---
+
+## Automated Batch Processing
+
+The pipeline supports an automated batch execution mode for processing large universes of ETFs sequentially.
+
+* **Intelligent Target Selection:** The script `scripts/build_etf_batch.py` curates the target universe. It filters a pre-defined multi-asset seed list based on strict institutional criteria: minimum historical age (10 years) to ensure full Z-score scaling validity, and a minimum average daily volume (ADV) threshold to guarantee liquidity and prevent pricing gaps.
+* **Orchestration (`src/main.py --batch`):** The orchestrator manages the execution loop for the 50 validated targets.
+* **Resource Efficiency:** To prevent API rate-limiting and maximize execution speed, the orchestrator performs a single, global pre-fetch of all required Yahoo Finance pricing data and FRED macroeconomic indicators before initiating the local, memory-bound computation loop.
+* **Data Persistence:** The batch runner aggregates the core metrics (prediction class, probabilities, KS-cutoff, and Out-of-Fold accuracy) for all processed targets and persists them as a structured array in `/output/latest_batch_results.json`. This file is overwritten upon each execution, providing a clean, point-in-time interface for downstream algorithmic rebalancing or database ingestion.
 
 ## Execution (Local & Development)
 

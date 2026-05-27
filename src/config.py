@@ -121,7 +121,6 @@ FRED_INDICATORS_UK = [
 ]
 
 # Yahoo Finance: International Sovereign Bond Yields (ETF Proxies)
-# Bond ETF prices move inversely to yields, providing an identical momentum signal
 SOVEREIGN_YIELDS = [
     'IGOV',  # iShares International Treasury Bond ETF (Heavy exposure to Eurozone/Japan)
     'BWX',   # SPDR Bloomberg International Treasury Bond ETF (Broad non-US sovereign debt)
@@ -131,16 +130,23 @@ SOVEREIGN_YIELDS = [
 # Combine all FRED indicators for the pipeline
 ALL_FRED_INDICATORS = FRED_INDICATORS + FRED_INDICATORS_EU + FRED_INDICATORS_JP + FRED_INDICATORS_UK
 
+# ==========================================
+# MASTER TICKER LIST (BATCH & SINGLE RUN)
+# ==========================================
+# 'SPY' ist fest integriert, um Data-Drops bei der Berechnung 
+# von systemischen Interaktions-Ratios (z.B. SPY/TLT) zu verhindern.
+ALL_TICKERS = list(set(
+    [TARGET_ETF, 'SPY'] + 
+    MACRO_INDICATORS + COMMODITIES + AGRI_COMMODITIES + 
+    CREDIT_RISK + SECTORS_AND_INDICES + MORE_SECTORS + 
+    REAL_ESTATE + CRYPTO + 
+    TICKERS_US + TICKERS_DE + TICKERS_UK + TICKERS_JP +
+    SOVEREIGN_YIELDS
+))
+
 def get_all_tickers():
-    """Führt das gesamte Universum für die yfinance-Abfrage zusammen."""
-    return list(set(
-        [TARGET_ETF] + 
-        MACRO_INDICATORS + COMMODITIES + AGRI_COMMODITIES + 
-        CREDIT_RISK + SECTORS_AND_INDICES + MORE_SECTORS + 
-        REAL_ESTATE + CRYPTO + 
-        TICKERS_US + TICKERS_DE + TICKERS_UK + TICKERS_JP +
-        SOVEREIGN_YIELDS # <-- ADDED HERE
-    ))
+    """Abwärtskompatibilitäts-Funktion für ältere Pipeline-Skripte."""
+    return ALL_TICKERS
 
 # ==========================================
 # 4. LLM CONFIGURATION
