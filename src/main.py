@@ -20,17 +20,30 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
     ticker_universe = list(set(ALL_TICKERS + [ticker]))
     
     try:
-        # Daten vorbereiten (Übergabe der vorab geladenen Matrizen im Batch-Modus)
+        # WICHTIG: Im Batch-Modus verhindern wir Data-Leakage! 
+        # Das Modell darf die anderen 49 Ziel-ETFs nicht als Features sehen.
+        if pre_fetched_yahoo is not None:
+            if ticker not in pre_fetched_yahoo.columns:
+                raise ValueError(f"Target ETF {ticker} konnte von Yahoo Finance nicht heruntergeladen werden (Delisted/Fehler).")
+            
+            # Slicing: Nur Makro-Universum + dieser EINE Ziel-ETF
+            available_tickers = [t for t in ticker_universe if t in pre_fetched_yahoo.columns]
+            sliced_yahoo = pre_fetched_yahoo[available_tickers].copy()
+        else:
+            sliced_yahoo = None
+
+        # Daten vorbereiten
         X_train_scaled, y_train, X_live_scaled = load_and_prepare_data(
             target_ticker=ticker,
             all_tickers=ticker_universe,
             start_date=START_DATE,
             end_date=END_DATE,
             forecast_horizon=FORECAST_HORIZON_DAYS,
-            pre_fetched_yahoo=pre_fetched_yahoo,
+            pre_fetched_yahoo=sliced_yahoo,
             pre_fetched_fred=pre_fetched_fred
         )
         
+        # Im Batch-Modus unterdrücken wir den Timestamp, um keine hunderten Markdown-Reports zu generieren
         report_timestamp = None if is_batch else timestamp
         
         results = perform_feature_selection(
@@ -43,11 +56,11 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
         )
         
         class_mapping = {-1: "Down", 0: "Flat", 1: "Up"}
-        return {
+        response = {
             "ticker": ticker,
             "status": "Success",
             "prediction_class": int(results["prediction"]),
-            "prediction_label": class_mapping.get(results["prediction"]),
+            "prediction_label": class_mapping.get(results["prediction"], "Unknown"),
             "prob_down": float(results["probabilities"].get(-1, 0.0)),
             "prob_flat": float(results["probabilities"].get(0, 0.0)),
             "prob_up": float(results["probabilities"].get(1, 0.0)),
@@ -55,6 +68,12 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
             "quality_gate_passed": bool(results["is_valid_quality"]),
             "ks_cutoff": float(results["ks_cutoff"])
         }
+        
+        # Für Streamlit und Einzel-Ausführungen geben wir das komplette Modell & Grafiken zurück
+        if not is_batch:
+            response["raw_results"] = results
+            
+        return response
         
     except Exception as e:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR bei Ticker {ticker}: {e}")
@@ -78,17 +97,17 @@ def execute_batch_processing():
     print(f"Starte einmaligen Master-Download für alle {len(tickers)} Ziel-ETFs + Macro Universe...")
     print("="*60)
     
-    # Zusammenführen des globalen Macro-Universums mit allen 50 Batch-Zielen
+    # Zusammenführen des globalen Macro-Universums mit allen Batch-Zielen
     global_ticker_universe = list(set(ALL_TICKERS + tickers))
     
-    # Die zwei einzigen Netzwerk-Anfragen des gesamten Batch-Laufs:
+    # Die zwei einzigen Netzwerk-Anfragen des gesamten Batch-Laufs
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] MASTER-FETCH: Lade Kurse von Yahoo Finance...")
     global_raw_yahoo = yf.download(global_ticker_universe, start=START_DATE, end=END_DATE)['Close']
     
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] MASTER-FETCH: Lade makroökonomische Reihen von FRED...")
     global_raw_fred = fetch_and_lag_fred_data(START_DATE, END_DATE)
     
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Master-Download erfolgreich abgeschlossen. Wechsel in lokalen Berechnungsmodus...")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Master-Download abgeschlossen. Wechsel in lokalen Berechnungsmodus...")
     
     batch_results = {
         "execution_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -107,7 +126,7 @@ def execute_batch_processing():
         )
         batch_results["results"].append(res)
         
-    # Persistieren
+    # JSON-Ergebnisse persistieren
     output_dir = os.path.join(project_root, 'output')
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, 'latest_batch_results.json')
