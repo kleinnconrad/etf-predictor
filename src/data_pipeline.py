@@ -127,6 +127,9 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
 
     # Separate live rows BEFORE any dropna, so they aren't wiped out
     live_predict_row = features[features['target_class'].isna()].copy()
+    
+    # NEU: Isoliere ausschließlich den absolut aktuellsten Handelstag (Heute)
+    live_predict_row = live_predict_row.iloc[[-1]]
 
     # Drop rows where target_class is missing (live rows) or any feature is NaN
     # This correctly removes the 126-day warmup period without leaking future data.
