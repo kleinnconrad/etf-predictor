@@ -2,6 +2,14 @@
 
 This repository contains a machine learning pipeline to forecast the medium-term market development of a target ETF (default: SPY). The model classifies the future market state into three discrete classes: **Up**, **Down**, and **Flat**. The statistical foundation is a Multinomial Logistic Regression (Softmax).
 
+## Motivation for ETF forecasting
+
+I specifically chose to forecast macro ETFs rather than individual equities, futures, or crypto assets for the following reasons:
+
+* **Superior Signal-to-Noise Ratio:** Individual stocks are highly vulnerable to idiosyncratic risks (earnings misses, management scandals, lawsuits) which are statistically unpredictable for retail investors. ETFs represent a broad cross-section of assets, naturally smoothing out these singular shocks. What remains is systemic market movement, which can be far more reliably modeled using macroeconomic indicators.
+* **Classification over Exact Pricing:** Predicting exact future asset prices (regression) is notoriously prone to overfitting and noise. This pipeline embraces the reality of available retail data by focusing purely on market regime classification (**Up, Down, Flat**). This creates a fundamentally more robust and honest prediction model.
+* **A Different Playing Field:** While the open-source and retail algo-trading space is heavily saturated with volatile day-trading bots for crypto and single stocks, systematic macroeconomic ETF rotation remains an underserved niche. This project aims to provide a stable, long-term analytical tool rather than a high-frequency trading gamble.
+
 ## Table of Contents
 
 - [Model Architecture](#model-architecture)
