@@ -31,15 +31,19 @@ def calculate_smoothed_weights(y_data, smoothing='log'):
             weights[cls] = round(float(ratio), 2)
     return weights
 
-def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=10):
+def get_llm_interpretation(coeff_df_string, target_etf, horizon_days, max_retries=3, delay=10):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
         return "> *Kein API-Key hinterlegt. LLM-Analyse uebersprungen.*"
     
+    # Berechne grob die Monate für den Prompt (21 Handelstage = 1 Monat)
+    horizon_months = max(1, horizon_days // 21)
+    
     client = genai.Client(api_key=GEMINI_API_KEY)
     
+    # Setze die dynamische Variable in den Prompt ein
     prompt = f"""
     Du bist ein quantitativer Macro-Analyst eines Hedgefonds. Mein Modell zur Vorhersage 
-    des Marktzustandes (Up, Down, Flat) fuer den {target_etf} (Horizont: 6 Monate) hat 
+    des Marktzustandes (Up, Down, Flat) fuer den {target_etf} (Horizont: {horizon_months} Monate) hat 
     basierend auf einer Schrittweisen Variablenselektion folgende Praediktoren ausgewaehlt 
     und gewichtet (Kuerzel am Ende zeigen das Momentum-Fenster, z.B. _6M):
     
@@ -56,7 +60,7 @@ def get_llm_interpretation(coeff_df_string, target_etf, max_retries=3, delay=10)
     Strukturiere deine Antwort zwingend in diese drei kurzen Bloecke:
     **1. Makrooekonomisches Setup:** (Warum wurden Zinsen/Waehrungen/Rohstoffe gewaehlt oder ignoriert?)
     **2. Sektor- & Marktdynamik:** (Was verraten die ausgewaehlten Equities/Sektoren ueber den Konjunkturzyklus?)
-    **3. Quant-Konklusion:** (Was ist das uebergeordnete Narrativ fuer den {target_etf} in den naechsten 6 Monaten?)
+    **3. Quant-Konklusion:** (Was ist das uebergeordnete Narrativ fuer den {target_etf} in den naechsten {horizon_months} Monaten?)
     """
     
     for attempt in range(max_retries):
@@ -255,7 +259,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     
     if timestamp:
         print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Hole oekonomische Interpretation vom LLM...")
-        llm_analysis = get_llm_interpretation(coeff_df.to_string(index=False), target_etf)
+        # ALT: llm_analysis = get_llm_interpretation(coeff_df.to_string(index=False), target_etf)
+        llm_analysis = get_llm_interpretation(coeff_df.to_string(index=False), target_etf, horizon)
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(current_dir, '..'))

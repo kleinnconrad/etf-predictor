@@ -141,7 +141,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     # Clean Inf and NaN values caused by rolling calculations
     features = features.replace([np.inf, -np.inf], np.nan)
 
-    features['future_6M_return'] = (
+    features['future_return'] = (
         imputed_data[target_ticker].shift(-forecast_horizon) 
         / imputed_data[target_ticker] - 1
     )
@@ -159,7 +159,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
         elif ret < threshold_down: return -1
         else: return 0
             
-    features['target_class'] = features['future_6M_return'].apply(categorize_return)
+    features['target_class'] = features['future_return'].apply(categorize_return)
 
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Splitting live and training rows...", flush=True)
 
@@ -183,7 +183,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
         )
 
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Scaling features...", flush=True)
-    feature_cols = [c for c in training_matrix.columns if c not in ['target_class', 'future_6M_return']]
+    feature_cols = [c for c in training_matrix.columns if c not in ['target_class', 'future_return']]
     
     # =========================================================================
     # DETERMINISTIC WINSORIZATION (CLIPPING OUTLIERS)
