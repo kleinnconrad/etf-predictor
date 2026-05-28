@@ -51,7 +51,7 @@ The model does not process absolute stock prices. The raw data undergoes a multi
 
 Return classification is based on macroeconomic assumptions scaled to the forecast horizon:
 
-* **Economic Baseline:** The model applies an assumed base inflation rate (e.g., 2.5% p.a.) and a tolerance corridor of (e.g. -1% for down and +2.5% for up and flat else).
+* **Economic Baseline:** The model applies an assumed base inflation rate (e.g., 2.5% p.a.) and a tolerance corridor of (e.g. -1% for down and +5.5% for up and flat else).
 * **Scaling:** These annualized values are linearly scaled to the forecast horizon (e.g., 126 trading days). 
 * **Logic:** A future return exceeding the upper threshold is classified as `Up` (1). A return below the lower threshold is `Down` (-1). A return within the corridor is classified as `Flat` (0).
 
@@ -101,7 +101,7 @@ Feature selection algorithms risk overfitting in large variable spaces. A model 
 A logistic regression defaults to the class with the highest probability. This static threshold is inadequate for asymmetric risk profiles like market crashes. 
 * The pipeline dynamically optimizes the trigger threshold for the `Down` class using the Kolmogorov-Smirnov (KS) statistic. 
 * The KS statistic identifies the probability cutoff that maximizes the difference between the True Positive Rate (TPR) and the False Positive Rate (FPR). 
-* If the current crash probability exceeds this optimized cutoff, the model issues a `Down` warning, regardless of whether another class holds a higher absolute probability.
+* **If the current crash probability exceeds this optimized cutoff, the model issues a `Down` warning, regardless of whether another class holds a higher absolute probability.**
 
 ---
 
