@@ -5,7 +5,13 @@ import numpy as np
 import yfinance as yf
 from sklearn.preprocessing import StandardScaler
 from fredapi import Fred
-from config import ALL_FRED_INDICATORS
+from config import (
+    ALL_FRED_INDICATORS,
+    ANNUAL_INFLATION_RATE,
+    ANNUAL_MARGIN_UP,
+    ANNUAL_MARGIN_DOWN,
+    TRADING_DAYS_PER_YEAR
+)
 from datetime import datetime
 import time
 import os
@@ -140,10 +146,17 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
         / imputed_data[target_ticker] - 1
     )
     
+    # --- DYNAMISCHE THRESHOLD-BERECHNUNG ---
+    # Skaliert die jährlichen Raten auf den Vorhersagehorizont
+    time_scaling = forecast_horizon / TRADING_DAYS_PER_YEAR
+    
+    threshold_up = (ANNUAL_INFLATION_RATE + ANNUAL_MARGIN_UP) * time_scaling
+    threshold_down = (ANNUAL_INFLATION_RATE - ANNUAL_MARGIN_DOWN) * time_scaling
+
     def categorize_return(ret):
         if pd.isna(ret): return None
-        elif ret > 0.0175: return 1
-        elif ret < 0.0075: return -1
+        elif ret > threshold_up: return 1
+        elif ret < threshold_down: return -1
         else: return 0
             
     features['target_class'] = features['future_6M_return'].apply(categorize_return)
