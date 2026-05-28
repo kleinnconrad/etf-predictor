@@ -155,7 +155,7 @@ This script parses the raw T7 dump, isolating only ETFs and ETCs actively traded
 
 **3. Institutional Filtering (`scripts/build_etf_batch.py`)**
 To separate high-quality assets from illiquid or newly launched funds, this script deploys a rate-limited, multithreaded engine to evaluate all ~3,000 tickers via the Yahoo Finance API against strict institutional criteria:
-* **Minimum History (5 Years):** Ensures the model has sufficient data points (~1,250 trading days) to identify statistically significant patterns, while specifically capturing the current macroeconomic regime (interest rates, inflation).
+* **Minimum History (10 Years):** Ensures the model has sufficient data points (~1,250 trading days) to identify statistically significant patterns, while specifically capturing the current macroeconomic regime (interest rates, inflation).
 * **High Liquidity (> €1M Daily Turnover):** Evaluates the *actual traded volume in Euro* (Volume × Close Price), strictly filtering out illiquid assets to guarantee real-world tradeability without severe spread slippage.
 
 The surviving universe (typically 200–400 premium UCITS ETFs) is finally compiled into `config/batch_targets.json`. This file serves as the definitive, dynamic target list for the automated GitHub Actions ML pipeline.
