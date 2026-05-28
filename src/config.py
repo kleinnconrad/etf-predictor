@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 # ==========================================
 END_DATE = datetime.today().strftime('%Y-%m-%d')
 # 10 Jahre Historie für saubere 126-Tage-Features und genug Trainingsdaten
-START_DATE = (datetime.today() - timedelta(days=365 * 10)).strftime('%Y-%m-%d')
+START_DATE = (datetime.today() - timedelta(days=365 * 10.5)).strftime('%Y-%m-%d')
 
 # ==========================================
 # 2. VORHERSAGE-ZIEL & ÖKONOMISCHE PARAMETER
@@ -136,7 +136,7 @@ ALL_FRED_INDICATORS = FRED_INDICATORS + FRED_INDICATORS_EU + FRED_INDICATORS_JP 
 # 'SPY' ist fest integriert, um Data-Drops bei der Berechnung 
 # von systemischen Interaktions-Ratios (z.B. SPY/TLT) zu verhindern.
 ALL_TICKERS = list(set(
-    [TARGET_ETF, 'SPY'] + 
+    ['SPY'] + 
     MACRO_INDICATORS + COMMODITIES + AGRI_COMMODITIES + 
     CREDIT_RISK + SECTORS_AND_INDICES + MORE_SECTORS + 
     REAL_ESTATE + CRYPTO + 

@@ -128,7 +128,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     col_dict = {}
     for col in imputed_data.columns:
         for w in windows:
-            col_dict[f'{col}_{w}M_ret'] = imputed_data[col].pct_change(w)
+            col_dict[f'{col}_{w}D_ret'] = imputed_data[col].pct_change(w)
 
     features = pd.DataFrame(col_dict, index=imputed_data.index)
 
