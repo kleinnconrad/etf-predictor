@@ -10,7 +10,16 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
-from config import TARGET_ETF, ALL_TICKERS, START_DATE, END_DATE, FORECAST_HORIZON_DAYS
+from config import (
+    TARGET_ETF, 
+    ALL_TICKERS, 
+    START_DATE, 
+    END_DATE, 
+    FORECAST_HORIZON_DAYS,
+    ANNUAL_INFLATION_RATE,
+    ANNUAL_MARGIN_UP,
+    ANNUAL_MARGIN_DOWN
+)
 from data_pipeline import load_and_prepare_data, fetch_and_lag_fred_data
 from modeling import perform_feature_selection
 
@@ -154,6 +163,12 @@ def execute_batch_processing(runner_id, total_runners):
     batch_results = {
         "execution_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "total_processed": len(my_tickers),
+        "baseline_parameters": {
+            "annual_inflation_rate": ANNUAL_INFLATION_RATE,
+            "annual_margin_up": ANNUAL_MARGIN_UP,
+            "annual_margin_down": ANNUAL_MARGIN_DOWN,
+            "forecast_horizon_days": FORECAST_HORIZON_DAYS
+        },
         "results": []
     }
     
