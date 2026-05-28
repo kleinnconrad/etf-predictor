@@ -41,7 +41,7 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
     print(f"Modell nutzt statisches Universum: {len(ALL_TICKERS)} Ticker.", flush=True)
     print("-"*40, flush=True)
     
-    ticker_universe = list(set(ALL_TICKERS + [ticker]))
+    ticker_universe = sorted(list(set(ALL_TICKERS + [ticker])))
     
     try:
         # WICHTIG: Im Batch-Modus verhindern wir Data-Leakage und unvollstaendige Feature-Matrizen!

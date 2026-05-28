@@ -67,19 +67,25 @@ jobs:
         import json, glob, os
         final_results = []
         exec_time = ''
+        baseline_params = {}
         
         # Iteriere über alle heruntergeladenen Artefakte
         for f in glob.glob('downloaded_artifacts/**/*.json', recursive=True):
             with open(f, 'r') as file:
                 data = json.load(file)
                 final_results.extend(data.get('results', []))
+                
+                # Nimm Zeit und Parameter vom ersten gefundenen Artefakt (sind überall identisch)
                 if not exec_time:
                     exec_time = data.get('execution_time', '')
+                if not baseline_params:
+                    baseline_params = data.get('baseline_parameters', {})
                     
         # Baue die finale, konsolidierte JSON auf
         final_output = {
             'execution_time': exec_time,
             'total_processed': len(final_results),
+            'baseline_parameters': baseline_params,
             'results': final_results
         }
         
