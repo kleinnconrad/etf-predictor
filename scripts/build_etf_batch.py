@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 1. Kalibrierte Metriken für Europa
-MIN_YEARS_HISTORY = 10  # 5 Jahre (ca. 1250 Handelstage) sind ausreichend für ML
+MIN_YEARS_HISTORY = 10  # 10 Jahre
 MIN_AVG_DAILY_TURNOVER_EUR = 1000000  # 1 Million Euro täglicher Handelsumsatz
 
 def check_etf_eligibility(ticker):
