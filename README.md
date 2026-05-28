@@ -69,6 +69,8 @@ Predictor selection is performed in two steps to ensure model stability:
 
 ### 5. Combating Base Rate Bias (Logarithmic Class Smoothing)
 
+**Currently commented out in `modeling.py` for testing purposes!!!**
+
 Forecasting broad market indices is complicated by historical upward trends, known as base rate bias. Uncorrected models often favor the `Up` class due to asymmetric class distribution. Linear weight corrections tend to overcompensate, increasing false positive rates. 
 
 The pipeline calculates dynamic class weights based on logarithmic smoothing. The penalty weight ($W$) per class is calculated as:

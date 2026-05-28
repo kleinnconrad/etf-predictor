@@ -1,5 +1,3 @@
-# src/modeling.py
-
 import time
 import pandas as pd
 import numpy as np
@@ -35,7 +33,7 @@ def get_llm_interpretation(coeff_df_string, target_etf, horizon_days, max_retrie
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
         return "> *Kein API-Key hinterlegt. LLM-Analyse uebersprungen.*"
     
-    # Berechne grob die Monate für den Prompt (21 Handelstage = 1 Monat)
+    # Berechne grob die Monate fuer den Prompt (21 Handelstage = 1 Monat)
     horizon_months = max(1, horizon_days // 21)
     
     client = genai.Client(api_key=GEMINI_API_KEY)
@@ -100,8 +98,10 @@ def apply_ks_logic(preds, probs, classes, cutoff):
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=12, pre_filter_k=80, timestamp=None):
     print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Fuehre Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
-    custom_weights = calculate_smoothed_weights(y, smoothing='log')
-    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
+    # Klassengewichtung auskommentiert
+    # custom_weights = calculate_smoothed_weights(y, smoothing='log')
+    # print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
+    custom_weights = None
     
     k_actual = min(pre_filter_k, X_scaled.shape[1])
     kbest = SelectKBest(score_func=f_classif, k=k_actual)
@@ -259,7 +259,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     
     if timestamp:
         print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Hole oekonomische Interpretation vom LLM...")
-        # ALT: llm_analysis = get_llm_interpretation(coeff_df.to_string(index=False), target_etf)
         llm_analysis = get_llm_interpretation(coeff_df.to_string(index=False), target_etf, horizon)
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
