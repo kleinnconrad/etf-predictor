@@ -17,8 +17,8 @@ TARGET_ETF = 'DBXJ.DE'
 FORECAST_HORIZON_DAYS = 126    # Prognose für 6 Monate in die Zukunft
 
 ANNUAL_INFLATION_RATE = 0.025  # 2.5 % Basis-Wachstum p.a.
-ANNUAL_MARGIN_UP = 0.055       # 5.5 % Toleranz nach oben (Up > 5.0 % p.a.)
-ANNUAL_MARGIN_DOWN = 0.01      # 1.0 % Toleranz nach unten (Down < 1.5 % p.a.)
+ANNUAL_MARGIN_UP = 0.075       # 7.5 % Toleranz nach oben
+ANNUAL_MARGIN_DOWN = 0.001      # 0.1 % Toleranz nach unten
 TRADING_DAYS_PER_YEAR = 252
 
 # ==========================================
