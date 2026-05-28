@@ -16,9 +16,10 @@ START_DATE = (datetime.today() - timedelta(days=365 * 10.5)).strftime('%Y-%m-%d'
 TARGET_ETF = 'DBXJ.DE'
 FORECAST_HORIZON_DAYS = 126    # Prognose für 6 Monate in die Zukunft
 
-ANNUAL_INFLATION_RATE = 0.025  # 2,5 % Basis-Wachstum p.a.
-ANNUAL_MARGIN = 0.01           # 1,0 % Toleranz-Korridor (Up/Flat/Down)
-TRADING_DAYS_PER_YEAR = 252    
+ANNUAL_INFLATION_RATE = 0.025  # 2.5 % Basis-Wachstum p.a.
+ANNUAL_MARGIN_UP = 0.025       # 2.5 % Toleranz nach oben (Up > 5.0 % p.a.)
+ANNUAL_MARGIN_DOWN = 0.01      # 1.0 % Toleranz nach unten (Down < 1.5 % p.a.)
+TRADING_DAYS_PER_YEAR = 252
 
 # ==========================================
 # 3. DAS 360-GRAD INVESTMENT UNIVERSUM
