@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETF Predictor - Batch Analyse</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --accent-up: #2ecc71;
+            --accent-down: #e74c3c;
+            --accent-flat: #f39c12;
+            --border: #e0e0e0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .chart-container {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        th:hover { background-color: #e2e6ea; }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: white;
+        }
+        .bg-up { background-color: var(--accent-up); }
+        .bg-down { background-color: var(--accent-down); }
+        .bg-flat { background-color: var(--accent-flat); }
+        #error-msg {
+            color: var(--accent-down);
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>ETF Quant Engine - Batch Analyse</h1>
+        <p id="execution-time" style="color: var(--text-muted);">Lade Daten...</p>
+    </div>
+
+    <div id="error-msg" style="display: none;"></div>
+
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <h3 style="margin:0; color: var(--text-muted);">Valide ETFs</h3>
+            <div class="metric-value" id="kpi-total">-</div>
+        </div>
+        <div class="metric-card" style="border-bottom: 4px solid var(--accent-up);">
+            <h3 style="margin:0; color: var(--text-muted);">Prognose: Up</h3>
+            <div class="metric-value" id="kpi-up" style="color: var(--accent-up);">-</div>
+        </div>
+        <div class="metric-card" style="border-bottom: 4px solid var(--accent-down);">
+            <h3 style="margin:0; color: var(--text-muted);">Prognose: Down</h3>
+            <div class="metric-value" id="kpi-down" style="color: var(--accent-down);">-</div>
+        </div>
+        <div class="metric-card" style="border-bottom: 4px solid var(--accent-flat);">
+            <h3 style="margin:0; color: var(--text-muted);">Prognose: Flat</h3>
+            <div class="metric-value" id="kpi-flat" style="color: var(--accent-flat);">-</div>
+        </div>
+    </div>
+
+    <div class="chart-container" id="scatter-plot"></div>
+
+    <div style="overflow-x: auto;">
+        <table id="data-table">
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Prognose</th>
+                    <th>Prob Up</th>
+                    <th>Prob Flat</th>
+                    <th>Prob Down</th>
+                    <th>CV Accuracy</th>
+                    <th>KS Cutoff</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Pfad zur JSON Datei (Passe dies an, falls die Datei woanders liegt)
+    const JSON_URL = 'artifacts/latest_batch_results.json';
+
+    async function loadData() {
+        try {
+            const response = await fetch(JSON_URL);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            
+            document.getElementById('execution-time').innerText = `Letzter Batch-Run: ${data.execution_time}`;
+            processAndRender(data.results);
+        } catch (error) {
+            console.error("Fehler beim Laden der JSON:", error);
+            document.getElementById('error-msg').style.display = 'block';
+            document.getElementById('error-msg').innerText = `Fehler beim Laden der Daten. Ist ${JSON_URL} erreichbar?`;
+        }
+    }
+
+    function processAndRender(results) {
+        // 1. FILTER-LOGIK: Entferne invaliden Schrott
+        const validData = results.filter(item => {
+            const isQualityPassed = item.quality_gate_passed === true;
+            const isKsValid = item.ks_cutoff !== "Infinity" && item.ks_cutoff !== null && !isNaN(item.ks_cutoff);
+            return isQualityPassed && isKsValid;
+        });
+
+        // 2. Metriken berechnen
+        let countUp = 0, countDown = 0, countFlat = 0;
+        validData.forEach(item => {
+            if (item.prediction_label === "Up") countUp++;
+            else if (item.prediction_label === "Down") countDown++;
+            else if (item.prediction_label === "Flat") countFlat++;
+        });
+
+        document.getElementById('kpi-total').innerText = validData.length;
+        document.getElementById('kpi-up').innerText = countUp;
+        document.getElementById('kpi-down').innerText = countDown;
+        document.getElementById('kpi-flat').innerText = countFlat;
+
+        // 3. Scatter Plot generieren
+        renderPlot(validData);
+
+        // 4. Tabelle füllen
+        renderTable(validData);
+    }
+
+    function renderPlot(data) {
+        const traceUp = { x: [], y: [], text: [], mode: 'markers', name: 'Up', marker: { color: '#2ecc71', size: 10 } };
+        const traceDown = { x: [], y: [], text: [], mode: 'markers', name: 'Down', marker: { color: '#e74c3c', size: 10 } };
+        const traceFlat = { x: [], y: [], text: [], mode: 'markers', name: 'Flat', marker: { color: '#f39c12', size: 10 } };
+
+        data.forEach(item => {
+            const maxProb = Math.max(item.prob_up, item.prob_down, item.prob_flat);
+            const tooltip = `<b>${item.ticker}</b><br>Accuracy: ${(item.cv_accuracy*100).toFixed(1)}%<br>Signal: ${(maxProb*100).toFixed(1)}%`;
+            
+            if (item.prediction_label === "Up") {
+                traceUp.x.push(item.cv_accuracy); traceUp.y.push(maxProb); traceUp.text.push(tooltip);
+            } else if (item.prediction_label === "Down") {
+                traceDown.x.push(item.cv_accuracy); traceDown.y.push(maxProb); traceDown.text.push(tooltip);
+            } else {
+                traceFlat.x.push(item.cv_accuracy); traceFlat.y.push(maxProb); traceFlat.text.push(tooltip);
+            }
+        });
+
+        const layout = {
+            title: 'Modellgüte vs. Signalstärke',
+            xaxis: { title: 'CV Accuracy (Kreuzvalidierung)', tickformat: ',.0%' },
+            yaxis: { title: 'Maximale Wahrscheinlichkeit (Signal)', tickformat: ',.0%' },
+            hovermode: 'closest',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: '#f8f9fa'
+        };
+
+        Plotly.newPlot('scatter-plot', [traceUp, traceDown, traceFlat], layout, {responsive: true});
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+        
+        // Sortiere initial nach CV Accuracy (absteigend)
+        data.sort((a, b) => b.cv_accuracy - a.cv_accuracy);
+
+        data.forEach(item => {
+            let badgeClass = item.prediction_label === 'Up' ? 'bg-up' : item.prediction_label === 'Down' ? 'bg-down' : 'bg-flat';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${item.ticker}</strong></td>
+                <td><span class="badge ${badgeClass}">${item.prediction_label}</span></td>
+                <td>${(item.prob_up * 100).toFixed(1)}%</td>
+                <td>${(item.prob_flat * 100).toFixed(1)}%</td>
+                <td>${(item.prob_down * 100).toFixed(1)}%</td>
+                <td>${(item.cv_accuracy * 100).toFixed(1)}%</td>
+                <td>${(item.ks_cutoff * 100).toFixed(1)}%</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Start
+    loadData();
+</script>
+
+</body>
+</html>
