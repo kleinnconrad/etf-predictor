@@ -12,7 +12,8 @@ from config import (
     END_DATE, 
     FORECAST_HORIZON_DAYS, 
     ANNUAL_INFLATION_RATE, 
-    ANNUAL_MARGIN, 
+    ANNUAL_MARGIN_UP, 
+    ANNUAL_MARGIN_DOWN,
     TRADING_DAYS_PER_YEAR,
     TARGET_ETF,
     get_all_tickers
@@ -29,7 +30,8 @@ def get_data(target_ticker, download_list, _timestamp):
         end_date=END_DATE,
         forecast_horizon=FORECAST_HORIZON_DAYS,
         annual_inflation=ANNUAL_INFLATION_RATE,
-        annual_margin=ANNUAL_MARGIN,
+        annual_margin_up=ANNUAL_MARGIN_UP,
+        annual_margin_down=ANNUAL_MARGIN_DOWN,
         trading_days=TRADING_DAYS_PER_YEAR,
         timestamp=_timestamp
     )
@@ -73,7 +75,8 @@ with st.sidebar:
     st.caption("Modell-Parameter")
     st.write(f"**Prognose-Horizont:** {FORECAST_HORIZON_DAYS} Tage")
     st.write(f"**Basis-Inflation:** {ANNUAL_INFLATION_RATE*100}%")
-    st.write(f"**Toleranz-Marge:** +/-{ANNUAL_MARGIN*100}%")
+    st.write(f"**Up-Marge:** +{ANNUAL_MARGIN_UP*100}%")
+    st.write(f"**Down-Marge:** -{ANNUAL_MARGIN_DOWN*100}%")
     
     st.divider()
     run_button = st.button("Analyse starten", use_container_width=True)
@@ -140,7 +143,6 @@ else:
                 
             st.caption(f"Sensitivitaet fuer Down-Signal datengetrieben optimiert (KS-Cutoff: {res['ks_cutoff']:.2%})")
             
-            # --- NEU: Wahrscheinlichkeiten als Metrik-Kacheln ---
             st.markdown("### Wahrscheinlichkeitsverteilung")
             probs = res["probabilities"]
             p_down = probs.get(-1, 0)
@@ -151,7 +153,6 @@ else:
             col_d.metric("Down (Crash)", f"{p_down:.1%}")
             col_f.metric("Flat (Seitwaerts)", f"{p_flat:.1%}")
             col_u.metric("Up (Bullenmarkt)", f"{p_up:.1%}")
-            # -----------------------------------------------------
             
             st.divider()
             st.markdown("**Die staerksten Makro-Treiber aktuell:**")
@@ -191,3 +192,4 @@ else:
                     st.markdown(f.read())
             else:
                 st.info("Das Variablen-Audit wurde fuer diesen Lauf nicht gefunden. Stelle sicher, dass `generate_variable_audit_table` erfolgreich durchlaeuft.")
+                
