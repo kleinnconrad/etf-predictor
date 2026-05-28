@@ -49,7 +49,7 @@ The model does not process absolute stock prices. The raw data undergoes a multi
 
 Return classification is based on macroeconomic assumptions scaled to the forecast horizon:
 
-* **Economic Baseline:** The model applies an assumed base inflation rate (e.g., 2.5% p.a.) and a tolerance corridor (e.g., +/- 1.0% p.a.).
+* **Economic Baseline:** The model applies an assumed base inflation rate (e.g., 2.5% p.a.) and a tolerance corridor of (e.g. -1% for down and +2.5% for up and flat else).
 * **Scaling:** These annualized values are linearly scaled to the forecast horizon (e.g., 126 trading days). 
 * **Logic:** A future return exceeding the upper threshold is classified as `Up` (1). A return below the lower threshold is `Down` (-1). A return within the corridor is classified as `Flat` (0).
 
