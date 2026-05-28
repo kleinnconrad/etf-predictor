@@ -98,10 +98,10 @@ def apply_ks_logic(preds, probs, classes, cutoff):
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=12, pre_filter_k=80, timestamp=None):
     print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Fuehre Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
-    # Klassengewichtung auskommentiert
-    # custom_weights = calculate_smoothed_weights(y, smoothing='log')
-    # print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
-    custom_weights = None
+    # Klassengewichtung
+    custom_weights = calculate_smoothed_weights(y, smoothing='log')
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
+    # custom_weights = None
     
     k_actual = min(pre_filter_k, X_scaled.shape[1])
     kbest = SelectKBest(score_func=f_classif, k=k_actual)
