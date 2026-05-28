@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETF Predictor - Batch Analyse</title>
+    <title>ETF Quant Engine - Batch Analyse</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         :root {
@@ -146,21 +146,38 @@
 </div>
 
 <script>
-    // Pfad - zur JSON Datei (Passe dies an, falls die Datei woanders liegt)
+    // Pfad zur JSON Datei (Da index.html im Root liegt, ist artifacts/... korrekt)
     const JSON_URL = 'artifacts/latest_batch_results.json';
 
     async function loadData() {
         try {
             const response = await fetch(JSON_URL);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
             
-            document.getElementById('execution-time').innerText = `Letzter Batch-Run: ${data.execution_time}`;
+            // 1. Lade die Antwort als reinen Rohtext (noch kein JSON!)
+            const rawText = await response.text();
+            
+            // 2. Der "Infinity-Fix": Mache aus rohen Werten legale Strings
+            const cleanText = rawText
+                .replace(/:\s*Infinity/g, ': "Infinity"')
+                .replace(/:\s*-Infinity/g, ': "-Infinity"')
+                .replace(/:\s*NaN/g, ': "NaN"');
+            
+            // 3. Jetzt gefahrlos in ein JavaScript-Objekt umwandeln
+            const data = JSON.parse(cleanText);
+            
+            // Ladezeitpunkt anzeigen
+            if (data.execution_time) {
+                document.getElementById('execution-time').innerText = `Letzter Batch-Run: ${data.execution_time}`;
+            } else {
+                document.getElementById('execution-time').innerText = `Erfolgreich geladen`;
+            }
+            
             processAndRender(data.results);
         } catch (error) {
-            console.error("Fehler beim Laden der JSON:", error);
+            console.error("Fehler beim Laden oder Parsen der JSON:", error);
             document.getElementById('error-msg').style.display = 'block';
-            document.getElementById('error-msg').innerText = `Fehler beim Laden der Daten. Ist ${JSON_URL} erreichbar?`;
+            document.getElementById('error-msg').innerText = `Fehler beim Laden oder Parsen der Daten. Siehe Console (F12) für Details.`;
         }
     }
 
