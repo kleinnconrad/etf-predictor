@@ -124,7 +124,9 @@
         </div>
     </div>
 
-    <div class="chart-container" id="scatter-plot"></div>
+    <div class="chart-container">
+        <div id="scatter-plot" style="width: 100%; height: 500px;"></div>
+    </div>
 
     <div style="overflow-x: auto;">
         <table id="data-table">
@@ -233,9 +235,11 @@
             yaxis: { title: 'Maximale Wahrscheinlichkeit (Signal)', tickformat: ',.0%' },
             hovermode: 'closest',
             paper_bgcolor: 'rgba(0,0,0,0)',
-            plot_bgcolor: '#f8f9fa'
+            plot_bgcolor: 'rgba(0,0,0,0)', // Fix für Hintergrund
+            margin: { l: 60, r: 20, t: 40, b: 50 } // Verhindert, dass Labels abgeschnitten werden
         };
 
+        // Das responsive true sorgt dafür, dass er sich der Breite anpasst, aber die 500px Höhe respektiert
         Plotly.newPlot('scatter-plot', [traceUp, traceDown, traceFlat], layout, {responsive: true});
     }
 
