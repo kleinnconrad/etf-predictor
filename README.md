@@ -23,6 +23,7 @@ I specifically chose to forecast macro ETFs rather than individual equities, fut
 - [Risk Management & Model Safeguards](#risk-management--model-safeguards)
   - [1. Quality Gate (Out-of-Fold Evaluation)](#1-quality-gate-out-of-fold-evaluation)
   - [2. KS Statistic Cutoff Optimization (Crash Sensor)](#2-ks-statistic-cutoff-optimization-crash-sensor)
+  - [3. Dual Cut Off Logic](#3-dual-cut-off-logic)
 - [Automated Economic Interpretation (LLM)](#automated-economic-interpretation-llm)
 - [Configuration (`config.py`)](#configuration-configpy)
 - [Data Source & Macro Universe](#data-source--macro-universe)
@@ -102,6 +103,18 @@ A logistic regression defaults to the class with the highest probability. This s
 * The pipeline dynamically optimizes the trigger threshold for the `Down` class using the Kolmogorov-Smirnov (KS) statistic. 
 * The KS statistic identifies the probability cutoff that maximizes the difference between the True Positive Rate (TPR) and the False Positive Rate (FPR). 
 * **If the current crash probability exceeds this optimized cutoff, the model issues a `Down` warning, regardless of whether another class holds a higher absolute probability.**
+
+### 3. Dual Cutoff Logic
+
+To address the inherent asymmetry in financial machine learning and properly classify periods of market indecision ("Flat" markets), the pipeline utilizes a Dual Cutoff approach during the final prediction phase.
+
+**Down-Marge (derived from KS)**
+* **What it does:** Acts as an emergency brake. If the predicted probability for a market downturn (`prob_down`) exceeds this threshold, the model forcefully outputs a `-1` (Down) signal, regardless of the other probabilities.
+* **Where it is set:** This threshold is **dynamic**. It is calculated datadriven during each run in `src/modeling.py` using the Kolmogorov-Smirnov (KS) statistic on the Out-of-Fold (OOF) cross-validation data. It optimizes the threshold to best separate historical market crashes from false alarms.
+
+**Up-Marge (user constant)**
+* **What it does:** Prevents the model from over-predicting bull markets. Due to the smoothing of class weights, the model inherently favors extreme predictions over neutral ones. The Up-Marge demands a high level of conviction (e.g., >60% probability) before the model is allowed to output a `1` (Up) signal. If neither the Down-Marge nor the Up-Marge is breached, the model defaults to `0` (Flat).
+* **Where it is set:** This parameter (`ANNUAL_MARGIN_UP`) is configured statically in `src/config.py` and can be interactively adjusted via the slider in the Streamlit application (`src/app.py`).
 
 ---
 

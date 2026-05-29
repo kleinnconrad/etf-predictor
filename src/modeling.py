@@ -38,7 +38,6 @@ def get_llm_interpretation(coeff_df_string, target_etf, horizon_days, max_retrie
     
     client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # Setze die dynamische Variable in den Prompt ein
     prompt = f"""
     Du bist ein quantitativer Macro-Analyst eines Hedgefonds. Mein Modell zur Vorhersage 
     des Marktzustandes (Up, Down, Flat) fuer den {target_etf} (Horizont: {horizon_months} Monate) hat 
@@ -77,31 +76,44 @@ def get_llm_interpretation(coeff_df_string, target_etf, horizon_days, max_retrie
                     continue
             return f"> *Fehler bei der LLM-Abfrage: {e}*"
 
-def apply_ks_logic(preds, probs, classes, cutoff):
+# --- NEUE FUNKTION: DUAL CUTOFF ---
+def apply_dual_cutoffs(probs, classes, down_cutoff, up_cutoff):
     """
-    Wendet den optimierten KS-Cutoff rueckwirkend auf historische Vorhersagen an.
+    Wendet strikte Cutoffs fuer das Downside-Risiko und die Upside-Huerde an.
+    Prioritaet:
+    1. Wenn prob_down >= down_cutoff -> DOWN (-1)
+    2. Wenn prob_up >= up_cutoff -> UP (1)
+    3. Sonst -> FLAT (0)
     """
-    adjusted_preds = preds.copy()
-    if -1 not in classes: return adjusted_preds
-    down_idx = list(classes).index(-1)
+    adjusted_preds = np.zeros(len(probs), dtype=int)
     
-    for i in range(len(adjusted_preds)):
-        p_down = probs[i, down_idx]
-        if p_down >= cutoff:
+    down_idx = list(classes).index(-1) if -1 in classes else -1
+    up_idx = list(classes).index(1) if 1 in classes else -1
+    
+    for i in range(len(probs)):
+        p_down = probs[i, down_idx] if down_idx != -1 else 0
+        p_up = probs[i, up_idx] if up_idx != -1 else 0
+        
+        # 1. Notbremse: Zu hohes Abwaertsrisiko
+        if p_down >= down_cutoff:
             adjusted_preds[i] = -1
-        elif adjusted_preds[i] == -1 and p_down < cutoff:
-            sub_probs = probs[i].copy()
-            sub_probs[down_idx] = -1.0 
-            adjusted_preds[i] = classes[np.argmax(sub_probs)]
+        # 2. Hohe Huerde fuer Up: Nur bei extremer Sicherheit
+        elif p_up >= up_cutoff:
+            adjusted_preds[i] = 1
+        # 3. Keine Extreme: Der Markt laeuft seitwaerts (Flat)
+        else:
+            adjusted_preds[i] = 0
+            
     return adjusted_preds
+# ----------------------------------
 
-def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=12, pre_filter_k=80, timestamp=None):
+# WICHTIG: Die Signatur hat einen neuen Parameter 'up_cutoff_value' erhalten!
+def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=12, pre_filter_k=80, timestamp=None, up_cutoff_value=0.65):
     print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Fuehre Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
     
     # Klassengewichtung
     custom_weights = calculate_smoothed_weights(y, smoothing='log')
     print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
-    # custom_weights = None
     
     k_actual = min(pre_filter_k, X_scaled.shape[1])
     kbest = SelectKBest(score_func=f_classif, k=k_actual)
@@ -158,7 +170,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         
     valid_indices = ~np.isnan(oof_preds)
     y_valid = y.iloc[valid_indices]
-    oof_preds_valid = oof_preds[valid_indices]
     oof_probs_valid = oof_probs[valid_indices]
     
     print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: OOF Evaluation complete.")
@@ -175,17 +186,21 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         ks_stats = tpr - fpr
         max_ks_idx = np.argmax(ks_stats)
         optimal_down_threshold = thresholds[max_ks_idx]
-        print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: KS-Statistik optimiert: Cutoff fuer -1 liegt bei {optimal_down_threshold:.2%}")
+        print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: KS-Statistik optimiert: Down-Cutoff liegt bei {optimal_down_threshold:.2%}")
 
-    # 3. Synchronisation der Matrizen mit dem KS-Cutoff
-    oof_preds_ks = apply_ks_logic(oof_preds_valid, oof_probs_valid, model.classes_, optimal_down_threshold)
+    # ==========================================
+    # NEU: Strenge Huerde fuer Up anwenden
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Strikte Up-Huerde (Cutoff) gesetzt auf {up_cutoff_value:.2%}")
+    # ==========================================
+
+    # 3. Synchronisation der Matrizen mit dem DUAL-Cutoff
+    oof_preds_dual = apply_dual_cutoffs(oof_probs_valid, model.classes_, optimal_down_threshold, up_cutoff_value)
     
     train_probs = model.predict_proba(X_optimal)
-    train_preds = model.predict(X_optimal)
-    train_preds_ks = apply_ks_logic(train_preds, train_probs, model.classes_, optimal_down_threshold)
+    train_preds_dual = apply_dual_cutoffs(train_probs, model.classes_, optimal_down_threshold, up_cutoff_value)
 
-    # 4. Quality Gate (basierend auf den realen, KS-optimierten Vorhersagen)
-    cv_accuracy = accuracy_score(y_valid, oof_preds_ks)
+    # 4. Quality Gate 
+    cv_accuracy = accuracy_score(y_valid, oof_preds_dual)
     is_valid_quality = cv_accuracy >= 0.35
 
     def plot_advanced_cm(y_true, y_pred, classes, title, accuracy):
@@ -212,24 +227,26 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         plt.close(fig)
         return fig
 
-    train_accuracy = accuracy_score(y, train_preds_ks)
-    fig_cm_train = plot_advanced_cm(y, train_preds_ks, model.classes_, "1. In-Sample (Training)", train_accuracy)
-    fig_cm_cv = plot_advanced_cm(y_valid, oof_preds_ks, model.classes_, "2. Out-of-Sample (Cross-Validation)", cv_accuracy)
+    train_accuracy = accuracy_score(y, train_preds_dual)
+    fig_cm_train = plot_advanced_cm(y, train_preds_dual, model.classes_, "1. In-Sample (Training)", train_accuracy)
+    fig_cm_cv = plot_advanced_cm(y_valid, oof_preds_dual, model.classes_, "2. Out-of-Sample (Cross-Validation)", cv_accuracy)
 
-    # 5. Live Predict Logik
+    # 5. Live Predict Logik (Dual Cutoff angewendet)
     X_latest_optimal = latest_features_scaled[selected_features]
     probabilities = model.predict_proba(X_latest_optimal)[0]
     
     prob_dict = dict(zip(model.classes_, probabilities))
     prob_down = prob_dict.get(-1, 0)
+    prob_up = prob_dict.get(1, 0)
     
+    # --- Live Predict Dual Cutoff Logik ---
     if prob_down >= optimal_down_threshold:
         prediction = -1
+    elif prob_up >= up_cutoff_value:
+        prediction = 1
     else:
-        prediction = model.predict(X_latest_optimal)[0]
-        if prediction == -1 and prob_down < optimal_down_threshold:
-            sub_probs = {k: v for k, v in prob_dict.items() if k != -1}
-            prediction = max(sub_probs, key=sub_probs.get)
+        prediction = 0 # Default zu Flat
+    # --------------------------------------
 
     class_mapping = {-1: "Down", 0: "Flat", 1: "Up"}
     pred_label = class_mapping.get(prediction, "Unknown")
@@ -238,7 +255,6 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     predict_date_str = predict_date.strftime('%Y-%m-%d') if isinstance(predict_date, pd.Timestamp) else str(predict_date)
     
     prob_flat = prob_dict.get(0, 0)
-    prob_up = prob_dict.get(1, 0)
 
     print("\n" + "="*35)
     print("=== Aktuelle Modell-Prognose ===")
