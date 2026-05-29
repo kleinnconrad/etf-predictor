@@ -14,6 +14,8 @@
             --accent-up: #2ecc71;
             --accent-down: #e74c3c;
             --accent-flat: #f39c12;
+            --info-border: #2e66ff;
+            --info-bg: #eaf1fb;
             --border: #e0e0e0;
         }
         body {
@@ -31,6 +33,33 @@
             text-align: center;
             margin-bottom: 30px;
         }
+        
+        /* --- NEU: Info-Box Styling --- */
+        .info-box {
+            background-color: var(--info-bg);
+            border-left: 5px solid var(--info-border);
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            line-height: 1.5;
+        }
+        .info-box h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #1a4bd1;
+            font-size: 1.1em;
+        }
+        .info-box ul {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--text-main);
+        }
+        .info-box li {
+            margin-bottom: 6px;
+        }
+        /* ----------------------------- */
+
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -105,6 +134,14 @@
 
     <div id="error-msg" style="display: none;"></div>
 
+    <div class="info-box">
+        <h4>ℹ️ Dual-Cutoff Entscheidungslogik</h4>
+        <ul>
+            <li><strong>1. Down_prob (Prio 1):</strong> Überschreitet die <em>Prob Down</em> den <strong>KS Cutoff</strong>, wird das Signal auf <span style="color: var(--accent-down); font-weight: bold;">DOWN</span> gesetzt.</li>
+            <li><strong>2. Up_prob (Prio 2):</strong> Ist das Risiko gering, muss die <em>Prob Up</em> eine harte Hürde (z. B. <strong>65%</strong>) nehmen, um ein <span style="color: var(--accent-up); font-weight: bold;">UP</span> Signal zu generieren.</li>
+            <li><strong>3. Flat_prob:</strong> Greift keine der beiden Regeln, ist das Modell unentschlossen und deklariert den Markt als <span style="color: var(--accent-flat); font-weight: bold;">FLAT</span>.</li>
+        </ul>
+    </div>
     <div class="metrics-grid">
         <div class="metric-card">
             <h3 style="margin:0; color: var(--text-muted);">Valide ETFs</h3>
