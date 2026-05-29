@@ -113,9 +113,33 @@ To address the inherent asymmetry in financial machine learning and properly cla
 * **Where it is set:** This threshold is **dynamic**. It is calculated datadriven during each run in `src/modeling.py` using the Kolmogorov-Smirnov (KS) statistic on the Out-of-Fold (OOF) cross-validation data. It optimizes the threshold to best separate historical market crashes from false alarms.
 
 **Up-Marge (user constant)**
-* **What it does:** Prevents the model from over-predicting bull markets. Due to the smoothing of class weights, the model inherently favors extreme predictions over neutral ones. The Up-Marge demands a high level of conviction (e.g., >60% probability) before the model is allowed to output a `1` (Up) signal. If neither the Down-Marge nor the Up-Marge is breached, the model defaults to `0` (Flat).
+* **What it does:** Prevents the model from over-predicting bull markets. Due to the smoothing of class weights, the model inherently favors extreme predictions over neutral ones. The Up-Marge demands a high level of conviction (e.g., >65% probability) before the model is allowed to output a `1` (Up) signal. If neither the Down-Marge nor the Up-Marge is breached, the model defaults to `0` (Flat).
 * **Where it is set:** This parameter (`ANNUAL_MARGIN_UP`) is configured statically in `src/config.py` and can be interactively adjusted via the slider in the Streamlit application (`src/app.py`).
 
+Dieser Baum visualisiert, wie das Modell basierend auf den Roh-Wahrscheinlichkeiten (`prob_down`, `prob_up`) zu seinem finalen Markt-Signal gelangt.
+
+---
+
+**START:** Das Machine Learning Modell liefert Wahrscheinlichkeiten für die drei Klassen (-1, 0, 1).
+
+**Entscheidungsknoten 1: Abwärtsrisiko prüfen**
+Ist `prob_down` >= `optimal_down_threshold` (KS-Cutoff)?
+├── **JA:**
+│   └── **[ SIGNAL: DOWN (-1) ]** *(Der Prozess endet hier. Das Risiko ist zu hoch.)*
+│
+└── **NEIN:** *(Das Abwärtsrisiko ist gering. Weiter zu Schritt 2.)*
+    │
+    **Entscheidungsknoten 2: Aufwärtspotenzial prüfen**
+    Ist `prob_up` >= `up_cutoff_value` (z.B. die hart gesetzten 60%)?
+    ├── **JA:**
+    │   └── **[ SIGNAL: UP (1) ]** *(Der Prozess endet hier. Hohe Überzeugung für eine Rallye.)*
+    │
+    └── **NEIN:** *(Kein extremes Signal erkannt.)*
+        │
+        └── **[ SIGNAL: FLAT (0) ]** *(Der Markt tendiert seitwärts oder die Signale sind unklar.)*
+
+---
+**Prioritäts-Regel:** Der Down-Cutoff wird *immer* zuerst geprüft.
 ---
 
 ## Automated Economic Interpretation (LLM)
