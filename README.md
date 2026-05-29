@@ -120,25 +120,27 @@ To address the inherent asymmetry in financial machine learning and properly cla
 
 ---
 **START:** The machine learning model provides probabilities for the three classes (-1, 0, 1).
-
-**Decision Node 1: Check downside risk**
-Is `prob_down` >= `optimal_down_threshold` (KS cutoff)?
-├── **YES:**
-│   └── **[ SIGNAL: DOWN (-1) ]** *(The process ends here. The risk is too high.)*
-│
-└── **NO:** *(The downside risk is low. Proceed to Step 2.)*
-    │
-    **Decision Node 2: Check upside potential**
-    Is `prob_up` >= `up_cutoff_value` (e.g., the hardcoded 60%)?
-    ├── **YES:**
-    │   └── **[ SIGNAL: UP (1) ]** *(The process ends here. High conviction for a rally.)*
-    │
-    └── **NO:** *(No extreme signal detected.)*
-        │
-        └── **[ SIGNAL: FLAT (0) ]** *(The market is trending sideways or the signals are unclear.)*
-
-* Priority Rule: The down cutoff is *always* checked first.
 ---
+
+### Step 1: Check Downside Risk (Decision Node 1)
+**Is `prob_down` >= `optimal_down_threshold` (KS cutoff)?**
+
+* **YES:** -> **[ SIGNAL: DOWN (-1) ]** *(The process ends here. The risk is too high.)*
+
+* **NO:** *(The downside risk is low. Proceed to Step 2.)*
+
+---
+
+### Step 2: Check Upside Potential (Decision Node 2)
+**Is `prob_up` >= `up_cutoff_value=0.65`?**
+
+* **YES:** -> **[ SIGNAL: UP (1) ]** *(The process ends here. High conviction for a rally.)*
+
+* **NO:** *(No extreme signal detected.)*
+  -> **[ SIGNAL: FLAT (0) ]** *(The market is trending sideways or the signals are unclear.)*
+
+---
+**Priority Rule:** The down cutoff is *always* checked first.
 
 ## Automated Economic Interpretation (LLM)
 
