@@ -106,7 +106,7 @@ A logistic regression defaults to the class with the highest probability. This s
 * The KS statistic identifies the probability cutoff that maximizes the difference between the True Positive Rate (TPR) and the False Positive Rate (FPR). 
 * **If the current crash probability exceeds this optimized cutoff, the model issues a `Down` warning, regardless of whether another class holds a higher absolute probability.**
 
-### 3. Dual Cutoff Logic
+### 3. Dual Cut off Logic
 
 To address the inherent asymmetry in financial machine learning and properly classify periods of market indecision ("Flat" markets), the pipeline utilizes a Dual Cutoff approach during the final prediction phase.
 
@@ -116,7 +116,7 @@ To address the inherent asymmetry in financial machine learning and properly cla
 
 **Up-Marge (user constant)**
 * **What it does:** Prevents the model from over-predicting bull markets. Due to the smoothing of class weights, the model inherently favors extreme predictions over neutral ones. The Up-Marge demands a high level of conviction (e.g., >65% probability) before the model is allowed to output a `1` (Up) signal. If neither the Down-Marge nor the Up-Marge is breached, the model defaults to `0` (Flat).
-* **Where it is set:** This parameter (`ANNUAL_MARGIN_UP`) is configured statically in `src/config.py` and can be interactively adjusted via the slider in the Streamlit application (`src/app.py`).
+* **Where it is set:** This parameter is set in the `modeling.py`.
 
 Dieser Baum visualisiert, wie das Modell basierend auf den Roh-Wahrscheinlichkeiten (`prob_down`, `prob_up`) zu seinem finalen Markt-Signal gelangt.
 
