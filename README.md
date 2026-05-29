@@ -116,32 +116,28 @@ To address the inherent asymmetry in financial machine learning and properly cla
 
 **Up-Marge (user constant)**
 * **What it does:** Prevents the model from over-predicting bull markets. Due to the smoothing of class weights, the model inherently favors extreme predictions over neutral ones. The Up-Marge demands a high level of conviction (e.g., >65% probability) before the model is allowed to output a `1` (Up) signal. If neither the Down-Marge nor the Up-Marge is breached, the model defaults to `0` (Flat).
-* **Where it is set:** This parameter is set in the `modeling.py`.
-
-Dieser Baum visualisiert, wie das Modell basierend auf den Roh-Wahrscheinlichkeiten (`prob_down`, `prob_up`) zu seinem finalen Markt-Signal gelangt.
+* **Where it is set:** This parameter is set in the `modeling.py`. Look for `up_cutoff_value`.
 
 ---
+**START:** The machine learning model provides probabilities for the three classes (-1, 0, 1).
 
-**START:** Das Machine Learning Modell liefert Wahrscheinlichkeiten für die drei Klassen (-1, 0, 1).
-
-**Entscheidungsknoten 1: Abwärtsrisiko prüfen**
-Ist `prob_down` >= `optimal_down_threshold` (KS-Cutoff)?
-├── **JA:**
-│   └── **[ SIGNAL: DOWN (-1) ]** *(Der Prozess endet hier. Das Risiko ist zu hoch.)*
+**Decision Node 1: Check downside risk**
+Is `prob_down` >= `optimal_down_threshold` (KS cutoff)?
+├── **YES:**
+│   └── **[ SIGNAL: DOWN (-1) ]** *(The process ends here. The risk is too high.)*
 │
-└── **NEIN:** *(Das Abwärtsrisiko ist gering. Weiter zu Schritt 2.)*
+└── **NO:** *(The downside risk is low. Proceed to Step 2.)*
     │
-    **Entscheidungsknoten 2: Aufwärtspotenzial prüfen**
-    Ist `prob_up` >= `up_cutoff_value` (z.B. die hart gesetzten 60%)?
-    ├── **JA:**
-    │   └── **[ SIGNAL: UP (1) ]** *(Der Prozess endet hier. Hohe Überzeugung für eine Rallye.)*
+    **Decision Node 2: Check upside potential**
+    Is `prob_up` >= `up_cutoff_value` (e.g., the hardcoded 60%)?
+    ├── **YES:**
+    │   └── **[ SIGNAL: UP (1) ]** *(The process ends here. High conviction for a rally.)*
     │
-    └── **NEIN:** *(Kein extremes Signal erkannt.)*
+    └── **NO:** *(No extreme signal detected.)*
         │
-        └── **[ SIGNAL: FLAT (0) ]** *(Der Markt tendiert seitwärts oder die Signale sind unklar.)*
+        └── **[ SIGNAL: FLAT (0) ]** *(The market is trending sideways or the signals are unclear.)*
 
----
-**Prioritäts-Regel:** Der Down-Cutoff wird *immer* zuerst geprüft.
+* Priority Rule: The down cutoff is *always* checked first.
 ---
 
 ## Automated Economic Interpretation (LLM)
