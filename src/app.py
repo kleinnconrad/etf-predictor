@@ -124,72 +124,74 @@ if not st.session_state.analysis_done:
 else:
     res = st.session_state.results
     
+    # ---------------------------------------------------------
+    # ÄNDERUNG: Warnung anzeigen, aber Tabs trotzdem rendern!
+    # ---------------------------------------------------------
     if not res["is_valid_quality"]:
         st.error(f"Quality Gate nicht bestanden. Die Cross-Validation Accuracy ({res['cv_accuracy']:.2%}) ist zu niedrig.")
-        st.warning("Das Modell liefert auf dem aktuellen Daten-Subset keine Edge, die statistisch signifikant ueber reinem Raten liegt.")
+        st.warning("Das Modell liefert auf dem aktuellen Daten-Subset keine Edge, die statistisch signifikant ueber reinem Raten liegt. Die nachfolgenden Reports sind mit extremer Vorsicht zu geniessen.")
     
-    else:
-        tab1, tab2, tab3, tab4 = st.tabs(["Uebersicht", "LLM Analyse", "Modell-Diagnostik", "Variablen-Audit"])
+    # Die Tabs werden jetzt IMMER gerendert.
+    tab1, tab2, tab3, tab4 = st.tabs(["Uebersicht", "LLM Analyse", "Modell-Diagnostik", "Variablen-Audit"])
+    
+    with tab1:
+        st.subheader("Aktuelle Modell-Prognose")
         
-        with tab1:
-            st.subheader("Aktuelle Modell-Prognose")
+        if res["prediction"] == 1:
+            st.success("Haupt-Signal: UP (Bullenmarkt erwartet)")
+        elif res["prediction"] == -1:
+            st.error("Haupt-Signal: DOWN (Baerenmarkt / Crash-Gefahr)")
+        else:
+            st.warning("Haupt-Signal: FLAT (Seitwaertsmarkt / Inflation schlaegt Rendite)")
             
-            if res["prediction"] == 1:
-                st.success("Haupt-Signal: UP (Bullenmarkt erwartet)")
-            elif res["prediction"] == -1:
-                st.error("Haupt-Signal: DOWN (Baerenmarkt / Crash-Gefahr)")
-            else:
-                st.warning("Haupt-Signal: FLAT (Seitwaertsmarkt / Inflation schlaegt Rendite)")
-                
-            st.caption(f"Sensitivitaet fuer Down-Signal datengetrieben optimiert (KS-Cutoff: {res['ks_cutoff']:.2%})")
-            
-            st.markdown("### Wahrscheinlichkeitsverteilung")
-            probs = res["probabilities"]
-            p_down = probs.get(-1, 0)
-            p_flat = probs.get(0, 0)
-            p_up = probs.get(1, 0)
-            
-            col_d, col_f, col_u = st.columns(3)
-            col_d.metric("Down (Crash)", f"{p_down:.1%}")
-            col_f.metric("Flat (Seitwaerts)", f"{p_flat:.1%}")
-            col_u.metric("Up (Bullenmarkt)", f"{p_up:.1%}")
-            
-            st.divider()
-            st.markdown("**Die staerksten Makro-Treiber aktuell:**")
-            st.dataframe(res['X_optimal'].columns.tolist(), hide_index=True, use_container_width=True)
+        st.caption(f"Sensitivitaet fuer Down-Signal datengetrieben optimiert (KS-Cutoff: {res['ks_cutoff']:.2%})")
+        
+        st.markdown("### Wahrscheinlichkeitsverteilung")
+        probs = res["probabilities"]
+        p_down = probs.get(-1, 0)
+        p_flat = probs.get(0, 0)
+        p_up = probs.get(1, 0)
+        
+        col_d, col_f, col_u = st.columns(3)
+        col_d.metric("Down (Crash)", f"{p_down:.1%}")
+        col_f.metric("Flat (Seitwaerts)", f"{p_flat:.1%}")
+        col_u.metric("Up (Bullenmarkt)", f"{p_up:.1%}")
+        
+        st.divider()
+        st.markdown("**Die staerksten Makro-Treiber aktuell:**")
+        st.dataframe(res['X_optimal'].columns.tolist(), hide_index=True, use_container_width=True)
 
-        with tab2:
-            st.subheader("Google Gemini interpretation")
-            md_path = f"output/feature_selection_{res['timestamp']}.md"
-            if os.path.exists(md_path):
-                with open(md_path, "r", encoding="utf-8") as f:
-                    st.markdown(f.read())
-            else:
-                st.info("Bericht wird im Hintergrund generiert oder ist nicht verfuegbar.")
+    with tab2:
+        st.subheader("Google Gemini interpretation")
+        md_path = f"output/feature_selection_{res['timestamp']}.md"
+        if os.path.exists(md_path):
+            with open(md_path, "r", encoding="utf-8") as f:
+                st.markdown(f.read())
+        else:
+            st.info("Bericht wird im Hintergrund generiert oder ist nicht verfuegbar.")
 
-        with tab3:
-            st.subheader("Modell-Diagnostik")
-            st.markdown("""
-            Ein robustes Quant-Modell darf historische Daten nicht nur auswendig lernen (Overfitting). 
-            Die wahre Qualitaet zeigt sich in der **Out-of-Sample** Matrix rechts.
-            """)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if "cm_fig_train" in res:
-                    st.pyplot(res["cm_fig_train"], use_container_width=True)
-            with col2:
-                if "cm_fig_cv" in res:
-                    st.pyplot(res["cm_fig_cv"], use_container_width=True)
+    with tab3:
+        st.subheader("Modell-Diagnostik")
+        st.markdown("""
+        Ein robustes Quant-Modell darf historische Daten nicht nur auswendig lernen (Overfitting). 
+        Die wahre Qualitaet zeigt sich in der **Out-of-Sample** Matrix rechts.
+        """)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if "cm_fig_train" in res:
+                st.pyplot(res["cm_fig_train"], use_container_width=True)
+        with col2:
+            if "cm_fig_cv" in res:
+                st.pyplot(res["cm_fig_cv"], use_container_width=True)
 
-        with tab4:
-            st.subheader("Variablen-Audit")
-            st.markdown("Dokumentation der statistischen Signifikanz aller potenziellen Praediktoren.")
-            
-            audit_path = f"output/variable_audit_{res['timestamp']}.md"
-            if os.path.exists(audit_path):
-                with open(audit_path, "r", encoding="utf-8") as f:
-                    st.markdown(f.read())
-            else:
-                st.info("Das Variablen-Audit wurde fuer diesen Lauf nicht gefunden. Stelle sicher, dass `generate_variable_audit_table` erfolgreich durchlaeuft.")
-                
+    with tab4:
+        st.subheader("Variablen-Audit")
+        st.markdown("Dokumentation der statistischen Signifikanz aller potenziellen Praediktoren.")
+        
+        audit_path = f"output/variable_audit_{res['timestamp']}.md"
+        if os.path.exists(audit_path):
+            with open(audit_path, "r", encoding="utf-8") as f:
+                st.markdown(f.read())
+        else:
+            st.info("Das Variablen-Audit wurde fuer diesen Lauf nicht gefunden. Stelle sicher, dass `generate_variable_audit_table` erfolgreich durchlaeuft.")
