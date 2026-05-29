@@ -4,6 +4,8 @@ This repository contains a machine learning pipeline to forecast the medium-term
 
 **ETF Batch Analysis Dashboard:** [![ETF Quant Engine](https://img.shields.io/badge/Launch-Interactive_Dashboard-2ea44f?style=for-the-badge&logo=html5)](https://kleinnconrad.github.io/etf-predictor/)
 
+**ETF Single Mode Webservice:** [![ETF Quant Engine](https://img.shields.io/badge/Launch-Interactive_Dashboard-2ea44f?style=for-the-badge&logo=html5)](https://etf-predictor-production.up.railway.app)
+
 ## Motivation for ETF forecasting
 
 I specifically chose to forecast macro ETFs rather than individual equities, futures, or crypto assets for the following reasons:
@@ -225,8 +227,6 @@ The model is deployed as a web service using Streamlit, Docker, and Railway.app.
 * Deployment is automated via GitHub integration on Railway. 
 * The `GEMINI_API_KEY` and `PORT` environment variables must be configured securely in the Railway dashboard. 
 * The deployed application fetches live data and generates macroeconomic forecasts upon user request.
-
-[etf-predictor-web-service](https://etf-predictor-production.up.railway.app)
 
 [yahoo-finance-etf-overview](https://de.finance.yahoo.com/m%C3%A4rkte/etfs/top-performer/)
 
