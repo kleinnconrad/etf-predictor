@@ -103,9 +103,43 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
         }
         
         # Fuer Streamlit und Einzel-Ausfuehrungen geben wir das komplette Modell & Grafiken zurueck
+        # Fuer Streamlit und Einzel-Ausfuehrungen geben wir das komplette Modell & Grafiken zurueck
         if not is_batch:
             response["raw_results"] = results
             
+            # =========================================================================
+            # ARTEFAKT-EXPORT FÜR FEHLERANALYSE & PLAUSIBILITÄT (Nur im Einzelmodus)
+            # =========================================================================
+            try:
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                artifacts_dir = os.path.join(project_root, 'artifacts')
+                os.makedirs(artifacts_dir, exist_ok=True)
+                
+                safe_ts = timestamp if timestamp else datetime.now().strftime("%Y%m%d_%H%M%S")
+                
+                # 1. Training Matrix (Voller Feature-Space vor der Selektion + Zielvektor)
+                # Auf dieser Basis führt der Algorithmus die initiale Variablenselektion durch.
+                df_train = X_train_scaled.copy()
+                df_train['TARGET_CLASS'] = y_train
+                df_train.to_csv(os.path.join(artifacts_dir, f"{ticker}_1_train_full_{safe_ts}.csv"))
+                
+                # 2. CV Matrix (Nur die final selektierten Features + Zielvektor)
+                # Diese Matrix nutzt die TimeSeriesSplit Kreuzvalidierung und das finale Model-Fitting.
+                df_cv = results["X_optimal"].copy()
+                df_cv['TARGET_CLASS'] = y_train
+                df_cv.to_csv(os.path.join(artifacts_dir, f"{ticker}_2_cv_optimal_{safe_ts}.csv"))
+                
+                # 3. Predict Matrix (Der isolierte Live-Datenpunkt für die aktuelle Vorhersage)
+                # Reduziert auf exakt die Features, die das fertige Modell erwartet.
+                selected_features = results["selected_features"]
+                df_predict = X_live_scaled[selected_features].copy()
+                df_predict.to_csv(os.path.join(artifacts_dir, f"{ticker}_3_predict_live_{safe_ts}.csv"))
+                
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ARTIFACTS: 3 Diagnose-Matrizen nach /artifacts exportiert.", flush=True)
+            except Exception as e:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR beim Artefakt-Export: {e}", flush=True)
+            # =========================================================================
+
         return response
         
     except Exception as e:
