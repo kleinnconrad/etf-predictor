@@ -99,6 +99,35 @@ Feature selection algorithms risk overfitting in large variable spaces. A model 
 * The dataset is chronologically partitioned via a `TimeSeriesSplit`. The prediction accuracy on unseen data blocks is aggregated. 
 * The quality gate requires a cross-validated accuracy exceeding a baseline threshold. Below this threshold, the forecast and artifact generation are blocked to prevent statistically insignificant signals from reaching production.
 
+To rigorously prevent data leakage, the pipeline utilizes a `TimeSeriesSplit` with a dynamic **Purging Gap** (Embargo Zone). 
+
+Because the forecast horizon predicts future market states (e.g., 126 trading days ahead), the target labels of the latest training rows intrinsically overlap with the features of the subsequent validation rows. To prevent the model from artificially "peeking" into the future during cross-validation, a strict embargo zone—exactly the size of the forecast horizon—is mathematically deleted between the training block and the validation block during every single fold.
+
+The following graphic illustrates how the dataset (e.g., ~1,000 trading days) is chronologically partitioned across 5 folds. The validation set continuously rolls forward, while the embargo zone ensures absolute separation.
+
+```text
+Legend: 
+[█] Training Data   [▒] Purging Gap (Embargo)   [▓] Validation Data   [·] Unused Future
+
+Fold 1: ████▒▒▒▒▒▒▓▓▓▓▓▓▓▓································
+Fold 2: ████████████▒▒▒▒▒▒▓▓▓▓▓▓▓▓························
+Fold 3: ████████████████████▒▒▒▒▒▒▓▓▓▓▓▓▓▓················
+Fold 4: ████████████████████████████▒▒▒▒▒▒▓▓▓▓▓▓▓▓········
+Fold 5: ████████████████████████████████████▒▒▒▒▒▒▓▓▓▓▓▓▓▓
+```
+
+#### Exact Index Partitioning (Example: 1,000 Days, 126-Day Gap)
+
+| Fold | Training Indices | Purging Gap (Deleted) | Validation Indices |
+| :--- | :--- | :--- | :--- |
+| **Fold 1** | `0 - 40` | `40 - 166` | `166 - 332` |
+| **Fold 2** | `0 - 206` | `206 - 332` | `332 - 498` |
+| **Fold 3** | `0 - 372` | `372 - 498` | `498 - 664` |
+| **Fold 4** | `0 - 538` | `538 - 664` | `664 - 830` |
+| **Fold 5** | `0 - 704` | `704 - 830` | `830 - 996` |
+
+> **Note on Exported Matrices:** When exporting the matrices for debugging purposes, you will notice that both the training and the cross-validation matrix end on the exact same date (the end of the available history). This is mathematically correct: As seen in `Fold 5`, the final validation split evaluates the very last available historical sequence. Therefore, the full dataset must be present in memory to allow the sliding window to seamlessly reach the present day to conclude the out-of-sample testing.
+
 ### 2. KS Statistic Cutoff Optimization (Crash Sensor)
 
 A logistic regression defaults to the class with the highest probability. This static threshold is inadequate for asymmetric risk profiles like market crashes. 
