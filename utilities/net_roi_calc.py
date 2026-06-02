@@ -3,81 +3,81 @@ def get_float_input(prompt):
         try:
             return float(input(prompt).replace(',', '.'))
         except ValueError:
-            print("Ungültige Eingabe. Bitte eine Zahl eingeben (z.B. 1000 oder 5.5).")
+            print("Invalid input. Please enter a number (e.g., 1000 or 5.5).")
 
-def calculate_sparkasse_fee(volume):
+def calculate_broker_fee(volume):
     """
-    Berechnet die Gebühr: 1 % vom Kurswert, gedeckelt auf maximal 200 €.
+    Calculates the fee: 1% of the order volume, capped at a maximum of 200 €.
     """
     fee = volume * 0.01 
     return min(fee, 200.0)
 
 def main():
-    print("--- ETF Rendite-Rechner (Deutschland) ---\n")
+    print("--- ETF Return Calculator (Germany) ---\n")
     
-    # Eingaben
-    anlagebetrag = get_float_input("Anlagebetrag in Euro: ")
-    rendite_pa_prozent = get_float_input("Erwartete Bruttorendite (% p.a.): ")
-    ter_pa_prozent = get_float_input("ETF Gebühren (TER in % p.a.): ")
-    haltedauer_jahre = get_float_input("Haltedauer (in Jahren): ")
+    # Inputs
+    investment_amount = get_float_input("Investment amount in Euro: ")
+    expected_gross_return_pa = get_float_input("Expected gross return (% p.a.): ")
+    etf_ter_pa = get_float_input("ETF fees (TER in % p.a.): ")
+    holding_period_years = get_float_input("Holding period (in years): ")
     
-    # 1. Kaufkosten
-    kauf_gebuehr = calculate_sparkasse_fee(anlagebetrag)
-    tatsaechliches_investment = anlagebetrag
-    gesamtaufwand = anlagebetrag + kauf_gebuehr
+    # 1. Buy costs
+    buy_fee = calculate_broker_fee(investment_amount)
+    actual_investment = investment_amount
+    total_investment_cost = investment_amount + buy_fee
     
-    # 2. Wertentwicklung (Brutto nach TER)
-    # Die TER reduziert die jährliche Bruttorendite
-    effektive_rendite_pa = (rendite_pa_prozent - ter_pa_prozent) / 100.0
-    endwert_etf = tatsaechliches_investment * ((1 + effektive_rendite_pa) ** haltedauer_jahre)
+    # 2. Value development (Gross after TER)
+    # The TER reduces the annual gross return
+    effective_return_pa = (expected_gross_return_pa - etf_ter_pa) / 100.0
+    etf_end_value = actual_investment * ((1 + effective_return_pa) ** holding_period_years)
     
-    # 3. Verkaufskosten
-    verkauf_gebuehr = calculate_sparkasse_fee(endwert_etf)
+    # 3. Sell costs
+    sell_fee = calculate_broker_fee(etf_end_value)
     
-    # 4. Steuerberechnung
-    # Gewinn vor Steuern (nach Abzug der Kauf- und Verkaufskosten, wie vom Finanzamt anerkannt)
-    reiner_kursgewinn = endwert_etf - tatsaechliches_investment
-    gewinn_vor_steuern = reiner_kursgewinn - kauf_gebuehr - verkauf_gebuehr
+    # 4. Tax calculation
+    # Profit before taxes (after deducting buy and sell costs, as recognized by the tax office)
+    pure_capital_gain = etf_end_value - actual_investment
+    pre_tax_profit = pure_capital_gain - buy_fee - sell_fee
     
-    # Steuerberechnung greift nur bei positivem Gewinn
-    steuern = 0.0
-    if gewinn_vor_steuern > 0:
-        # 30% Teilfreistellung für Aktien-ETFs
-        steuerpflichtiger_gewinn = gewinn_vor_steuern * 0.7 
-        # 25% Abgeltungssteuer + 5,5% Soli = 26,375%
-        steuersatz = 0.26375 
-        steuern = steuerpflichtiger_gewinn * steuersatz
+    # Tax calculation only applies to positive profits
+    taxes = 0.0
+    if pre_tax_profit > 0:
+        # 30% partial tax exemption (Teilfreistellung) for equity ETFs
+        taxable_profit = pre_tax_profit * 0.7 
+        # 25% capital gains tax (Abgeltungssteuer) + 5.5% solidarity surcharge = 26.375%
+        tax_rate = 0.26375 
+        taxes = taxable_profit * tax_rate
         
-    # 5. Netto-Auszahlung
-    netto_auszahlung = endwert_etf - verkauf_gebuehr - steuern
-    netto_gewinn_euro = netto_auszahlung - gesamtaufwand
+    # 5. Net payout
+    net_payout = etf_end_value - sell_fee - taxes
+    net_profit_euro = net_payout - total_investment_cost
     
-    # 6. Rendite in Prozent
-    brutto_gewinn_euro = endwert_etf - anlagebetrag
+    # 6. Return in percent
+    gross_profit_euro = etf_end_value - investment_amount
     
-    # Annualisierte Nettorendite (CAGR)
-    if gesamtaufwand > 0:
-        netto_rendite_pa_prozent = ((netto_auszahlung / gesamtaufwand) ** (1 / haltedauer_jahre) - 1) * 100
+    # Annualized net return (CAGR)
+    if total_investment_cost > 0:
+        net_return_pa_percent = ((net_payout / total_investment_cost) ** (1 / holding_period_years) - 1) * 100
     else:
-        netto_rendite_pa_prozent = 0.0
+        net_return_pa_percent = 0.0
 
-    # 7. Ausgabe der Ergebnisse
-    print("\n--- Auswertung ---")
-    print(f"Endwert des ETF (vor Verkauf):   {endwert_etf:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    print(f"Bruttogewinn (Euro):             {brutto_gewinn_euro:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    # 7. Output of results
+    print("\n--- Evaluation ---")
+    print(f"End value of the ETF (before sale): {etf_end_value:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    print(f"Gross profit (Euro):                {gross_profit_euro:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
     
-    print("\n--- Kosten & Steuern ---")
-    print(f"Kaufgebühr (Sparkasse):          {kauf_gebuehr:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    print(f"Verkaufsgebühr (Sparkasse):      {verkauf_gebuehr:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    print(f"Abgeltungssteuer inkl. Soli:     {steuern:,.2f} € (unter Berücksichtigung von 30% Teilfreistellung)".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    total_kosten = kauf_gebuehr + verkauf_gebuehr + steuern
-    print(f"Gesamte Abzüge:                  {total_kosten:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    print("\n--- Costs & Taxes ---")
+    print(f"Buy fee (Broker):                   {buy_fee:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    print(f"Sell fee (Broker):                  {sell_fee:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    print(f"Capital gains tax (incl. Soli):     {taxes:,.2f} € (considering 30% tax exemption)".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    total_costs = buy_fee + sell_fee + taxes
+    print(f"Total deductions:                   {total_costs:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
     
-    print("\n--- Netto Ergebnis ---")
-    print(f"Netto-Auszahlung aufs Konto:     {netto_auszahlung:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    print(f"Nettogewinn (Euro):              {netto_gewinn_euro:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    print(f"Nettorendite (% p.a.):           {netto_rendite_pa_prozent:.2f} %")
+    print("\n--- Net Result ---")
+    print(f"Net payout to bank account:         {net_payout:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    print(f"Net profit (Euro):                  {net_profit_euro:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    print(f"Net return (% p.a.):                {net_return_pa_percent:.2f} %")
 
 if __name__ == "__main__":
     main()
-  
+    
