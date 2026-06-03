@@ -112,7 +112,7 @@ def _process_single_ticker_df(ticker, ticker_data, target_start_date, valid_etfs
     # 1. Check: Age of the ETF
     # The first index in the dataframe must be on or before the target_start_date
     first_date = ticker_data.index[0]
-    if pd.api.types.is_datetime64tz_dtype(first_date):
+    if first_date.tzinfo is not None:
         first_date = first_date.tz_localize(None)
         
     if first_date > target_start_date:
