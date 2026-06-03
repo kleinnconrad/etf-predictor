@@ -1,7 +1,7 @@
-# Scripts Directory Overview
+# Scripts
 
-This directory contains utility scripts for data preparation and documentation maintenance.
+This directory contains auxiliary modules for data preparation and documentation lifecycle management.
 
-* `generate_seed.py`: Processes the Xetra T7 instrument data. It extracts exchange-traded funds and commodities traded in euros, formats the mnemonics for API compatibility, and writes a deduplicated seed list to a text file.
-* `build_etf_batch.py`: Evaluates the eligibility of the generated seed list. It implements a multithreaded screening process to verify a minimum trading history of 10 years and a minimum daily turnover of one million euros. The validated tickers are exported as a JSON batch file.
-* `update_catalog.py`: Maintains the variable documentation. It utilizes an LLM API to cross-reference the codebase with the existing documentation catalog. Missing financial features or engineered ratios are identified and automatically appended to the documentation.
+* `build_etf_batch.py`: Filters the ETF seed list based on historical data depth and trading liquidity. Validates instruments requiring a minimum 10-year trading history and 1 million EUR average daily turnover. Exports the validated list as a JSON batch configuration.
+* `generate_seed.py`: Parses raw Xetra T7 instrument data to extract tradeable EUR-denominated ETFs and ETCs. Formats mnemonics for external API compatibility and outputs a deduplicated text seed list.
+* `update_catalog.py`: Automates variable documentation synchronisation. Uses an LLM API to cross-reference macroeconomic indicators and engineered interaction ratios defined in the source code against the markdown catalog, appending missing entries.

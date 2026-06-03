@@ -1,11 +1,11 @@
-# Source Code Overview
+# Source Code
 
-This directory contains the logic for the ETF Quant Engine pipeline. The components handle configuration, data ingestion, predictive modeling, and batch execution.
+This directory contains the core implementation of the quantitative ETF forecasting pipeline. 
 
-* `config.py`: Defines configuration parameters including target ETF selections, macroeconomic thresholds, and file paths.
-* `data_pipeline.py`: Manages data ingestion and preprocessing. It retrieves market data and macroeconomic indicators, calculates rolling features, and adjusts target class thresholds.
-* `modeling.py`: Contains the machine learning architecture. It implements class weighting and a Logistic Regression model utilizing Sequential Feature Selection. Cut Off logic is defined here.
-* `evaluation.py`: Computes performance metrics such as cross-validation accuracy and Kolmogorov-Smirnov statistics to assess model validity and quality gate compliance.
-* `audit.py`: Creates the `variable_audit` artifact in the single mode usage.
-* `app.py`: Implements the Streamlit application for data exploration and visualization of batch prediction results.
-* `main.py`: Integrates the modules to execute an iteration of the quantitative pipeline.
+* `app.py`: Defines the Streamlit web application. Facilitates interactive data exploration, backtest evaluation, and visualization of batch predictions.
+* `audit.py`: Generates markdown-based audit trails for feature selection and model parameters. Logs selected variables, p-values, and model coefficients for compliance and review.
+* `config.py`: Stores static configuration parameters, including API keys, file paths, target instrument lists, and predefined macroeconomic indicator selections.
+* `data_pipeline.py`: Executes data ingestion and feature engineering. Fetches financial time series, computes rolling returns, generates interaction ratios, and defines the target classification logic.
+* `evaluation.py`: Computes validation metrics for the predictive models. Evaluates out-of-sample accuracy and utilizes Kolmogorov-Smirnov statistics to determine optimal probability thresholds for classification cutoffs.
+* `main.py`: Orchestrates the quantitative pipeline. Serves as the entry point for data ingestion, feature selection, model training, evaluation, and report generation.
+* `modeling.py`: Implements the machine learning logic. Features class-weight balancing, temporal cross-validation, and a logistic regression classifier with Sequential Feature Selection (SFS). Applies dual-cutoff probability rules for risk-adjusted predictions.
