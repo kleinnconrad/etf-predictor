@@ -2,42 +2,16 @@
 
 import os
 import requests
-from bs4 import BeautifulSoup
 import sys
 
 def main():
-    url = "https://www.xetra.com/xetra-en/instruments/all-tradable-instruments"
+    # Direct link to the Xetra T7 allTradableInstruments.csv dump
+    csv_url = "https://www.cashmarket.deutsche-boerse.com/resource/blob/1528/6249e15bf93885fd91bd411663a0ff82/data/t7-xetr-allTradableInstruments.csv"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     
-    print(f"Fetching Xetra instruments portal: {url}")
-    try:
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"Error accessing Xetra portal: {e}")
-        sys.exit(1)
-
-    soup = BeautifulSoup(response.text, "html.parser")
-    
-    csv_url = None
-    for a in soup.find_all('a', href=True):
-        href = a['href']
-        if 'allTradableInstruments.csv' in href:
-            csv_url = href
-            break
-            
-    if not csv_url:
-        print("Error: Could not locate the dynamic CSV download link on the page.")
-        print("The page structure might have changed or requires JavaScript rendering.")
-        sys.exit(1)
-
-    if not csv_url.startswith('http'):
-        csv_url = "https://www.xetra.com" + csv_url
-        
-    print(f"Extracted dynamic download URL: {csv_url}")
-    print("Initiating download...")
+    print(f"Initiating direct download from: {csv_url}")
     
     try:
         csv_response = requests.get(csv_url, headers=headers, timeout=30)
