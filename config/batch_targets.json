@@ -1,6 +1,6 @@
 {
-    "generated_at": "2026-06-02 13:19:53",
-    "target_count": 171,
+    "generated_at": "2026-06-03 14:43:29",
+    "target_count": 183,
     "tickers": [
         "18MF.DE",
         "36BZ.DE",
@@ -70,8 +70,10 @@
         "EXXW.DE",
         "G2X.DE",
         "G2XJ.DE",
+        "H410.DE",
         "H4ZA.DE",
         "H4ZJ.DE",
+        "HDLV.DE",
         "IBC6.DE",
         "IBCF.DE",
         "IBCH.DE",
@@ -81,6 +83,7 @@
         "IQQF.DE",
         "IQQH.DE",
         "IQQK.DE",
+        "IQQQ.DE",
         "IQQT.DE",
         "IQQW.DE",
         "IQQY.DE",
@@ -172,6 +175,15 @@
         "XMUS.DE",
         "XRS2.DE",
         "XSMI.DE",
-        "XSX6.DE"
+        "XSX6.DE",
+        "XXSC.DE",
+        "XY4P.DE",
+        "ZPDE.DE",
+        "ZPDI.DE",
+        "ZPDT.DE",
+        "ZPRG.DE",
+        "ZPRR.DE",
+        "ZPRV.DE",
+        "ZPRX.DE"
     ]
 }
