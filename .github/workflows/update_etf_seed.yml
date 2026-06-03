@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -36,18 +35,9 @@ jobs:
       - name: Screen Liquidity and Build ETF Batch
         run: python scripts/build_etf_batch.py
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+      - name: Commit and Push Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update ETF batch targets and seed list from Xetra"
-          title: "Update ETF Batch Targets"
-          body: |
-            Automated Pull Request to update the ETF configuration.
-            
-            **Executed pipeline steps:**
-            1. Downloaded latest Xetra T7 `allTradableInstruments.csv`
-            2. Extracted and deduplicated seed list in `all_etfs_seed.txt`
-            3. Applied 10-year history and 1M EUR turnover criteria to generate `batch_targets.json`
-          branch: auto/update-etf-targets
-          base: main
+          commit_message: "chore: update ETF batch targets and seed list from Xetra"
+          branch: main
+          file_pattern: "config/*"

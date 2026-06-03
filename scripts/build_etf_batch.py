@@ -6,46 +6,12 @@ import json
 import os
 import time
 from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 1. Kalibrierte Metriken für Europa
 MIN_YEARS_HISTORY = 10  # 10 Jahre
 MIN_AVG_DAILY_TURNOVER_EUR = 1000000  # 1 Million Euro täglicher Handelsumsatz
-
-def check_etf_eligibility(ticker):
-    """Prüft, ob der ETF alt genug und liquide genug (in EUR Umsatz) ist."""
-    # Wir geben yfinance bis zu 3 Versuche (falls die API kurzzeitig blockt)
-    for attempt in range(3):
-        try:
-            etf = yf.Ticker(ticker)
-            hist = etf.history(period="max")
-            
-            if hist.empty:
-                time.sleep(1) # Kurz warten vor dem nächsten Versuch
-                continue
-
-            # 1. Check: Alter des ETFs
-            first_date = hist.index[0].tz_localize(None)
-            cutoff_date = datetime.now() - timedelta(days=365 * MIN_YEARS_HISTORY)
-            
-            if first_date > cutoff_date:
-                return ticker, False, f"Zu jung (Start: {first_date.strftime('%Y-%m')})"
-
-            # 2. Check: Echte Liquidität (Umsatz in Euro, nicht nur Stückzahl)
-            recent_data = hist.tail(60)
-            # Umsatz = Gehandelte Stücke * Schlusskurs
-            avg_turnover = (recent_data['Volume'] * recent_data['Close']).mean()
-            
-            if avg_turnover < MIN_AVG_DAILY_TURNOVER_EUR:
-                return ticker, False, f"Zu illiquide (Umsatz: {avg_turnover/1000000:.1f} Mio. €)"
-
-            return ticker, True, "Bestanden"
-            
-        except Exception as e:
-            time.sleep(1)
-            continue
-            
-    return ticker, False, "API Timeout oder kein Handel auf Xetra"
+CHUNK_SIZE = 100
+SLEEP_BETWEEN_CHUNKS = 5
 
 def main():
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -61,23 +27,63 @@ def main():
     print("\n" + "="*60)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] STARTE KALIBRIERTES XETRA-SCREENING")
     print(f"Bedingungen: > {MIN_YEARS_HISTORY} Jahre Historie UND > 1 Mio. € Tagesumsatz")
-    print(f"Prüfe {len(all_tickers)} Ticker (Rate-Limited, max 10 Threads)...")
+    print(f"Prüfe {len(all_tickers)} Ticker in Chunks von {CHUNK_SIZE} (Rate-Limit geschützt)...")
     print("="*60 + "\n")
     
     valid_etfs = []
     
-    # Auf 10 Threads gedrosselt, um Yahoo Finance nicht zu verärgern
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(check_etf_eligibility, ticker): ticker for ticker in all_tickers}
+    # Calculate the cutoff date (exactly 10 years ago)
+    target_start_date = datetime.now() - timedelta(days=365 * MIN_YEARS_HISTORY)
+    
+    # We fetch from slightly earlier to guarantee we capture the start date 
+    # if the ETF was launched exactly 10 years ago.
+    fetch_start_date = target_start_date - timedelta(days=15)
+    start_date_str = fetch_start_date.strftime('%Y-%m-%d')
+    
+    # Split the tickers into manageable chunks to avoid API timeouts
+    chunks = [all_tickers[i:i + CHUNK_SIZE] for i in range(0, len(all_tickers), CHUNK_SIZE)]
+    
+    for idx, chunk in enumerate(chunks):
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Lade Chunk {idx + 1}/{len(chunks)} ({len(chunk)} Ticker)...")
         
-        for idx, future in enumerate(as_completed(futures), 1):
-            ticker, is_valid, reason = future.result()
+        try:
+            # group_by="ticker" creates a MultiIndex where level 0 is the Ticker and level 1 is OHLCV
+            df = yf.download(chunk, start=start_date_str, group_by="ticker", threads=True, progress=False)
             
-            if is_valid:
-                valid_etfs.append(ticker)
-                print(f"[{idx:04d}/{len(all_tickers)}] [OK] {ticker} (Target erreicht!)")
-            else:
-                print(f"[{idx:04d}/{len(all_tickers)}] [REJECTED] {ticker} - {reason}")
+            # If the chunk only has 1 ticker, yfinance returns a single-index DataFrame
+            if len(chunk) == 1:
+                ticker = chunk[0]
+                if df.empty:
+                    print(f"  [REJECTED] {ticker} - Keine Daten gefunden")
+                else:
+                    _process_single_ticker_df(ticker, df, target_start_date, valid_etfs)
+                continue
+                
+            # For multiple tickers, iterate over the downloaded columns
+            # Handle cases where some tickers completely failed to download (not in columns)
+            downloaded_tickers = set(df.columns.get_level_values(0))
+            
+            for ticker in chunk:
+                if ticker not in downloaded_tickers:
+                    print(f"  [REJECTED] {ticker} - Keine Daten gefunden / API Timeout")
+                    continue
+                    
+                # Extract the subset for this specific ticker
+                ticker_data = df[ticker].dropna(subset=['Close', 'Volume'])
+                
+                if ticker_data.empty:
+                    print(f"  [REJECTED] {ticker} - Keine verwertbaren Preisdaten in diesem Zeitraum")
+                    continue
+                    
+                _process_single_ticker_df(ticker, ticker_data, target_start_date, valid_etfs)
+                
+        except Exception as e:
+            print(f"Fehler bei Chunk {idx + 1}: {e}")
+            
+        # Intentional delay to avoid getting IP-banned by Yahoo Finance
+        if idx < len(chunks) - 1:
+            print(f"  > Pausiere {SLEEP_BETWEEN_CHUNKS} Sekunden zum Schutz vor Rate-Limits...")
+            time.sleep(SLEEP_BETWEEN_CHUNKS)
 
     valid_etfs.sort()
 
@@ -98,6 +104,32 @@ def main():
         }, f, indent=4)
         
     print(f"Batch-Ziele gespeichert unter: {output_path}")
+
+def _process_single_ticker_df(ticker, ticker_data, target_start_date, valid_etfs):
+    """
+    Evaluates age and liquidity locally on the downloaded Pandas DataFrame.
+    """
+    # 1. Check: Age of the ETF
+    # The first index in the dataframe must be on or before the target_start_date
+    first_date = ticker_data.index[0]
+    if pd.api.types.is_datetime64tz_dtype(first_date):
+        first_date = first_date.tz_localize(None)
+        
+    if first_date > target_start_date:
+        # print(f"  [REJECTED] {ticker} - Zu jung (Start: {first_date.strftime('%Y-%m')})")
+        return
+
+    # 2. Check: Real liquidity (Turnover in Euro)
+    # Average over the last 60 trading days
+    recent_data = ticker_data.tail(60)
+    avg_turnover = (recent_data['Volume'] * recent_data['Close']).mean()
+    
+    if avg_turnover < MIN_AVG_DAILY_TURNOVER_EUR:
+        # print(f"  [REJECTED] {ticker} - Zu illiquide (Umsatz: {avg_turnover/1000000:.1f} Mio. €)")
+        return
+
+    print(f"  [OK] {ticker} (Target erreicht!)")
+    valid_etfs.append(ticker)
 
 if __name__ == "__main__":
     main()
