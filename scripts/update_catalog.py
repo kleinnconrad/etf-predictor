@@ -72,6 +72,9 @@ def main():
             contents=prompt,
         )
         new_rows = response.text.strip()
+        
+        # Clean up any rogue markdown code block tags the LLM might have generated
+        new_rows = new_rows.replace("```markdown", "").replace("```", "").strip()
 
         if new_rows and "NO_MISSING_VARIABLES" not in new_rows:
             with open(catalog_path, 'a', encoding='utf-8') as f:
