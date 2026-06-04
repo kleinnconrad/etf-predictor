@@ -42,7 +42,7 @@ BEGIN
             jpncpiallminmei_val, lrhuttttjpm156s_val, jpnassets_val, jpnproindmismei_val,
             
             -- NEW: FRED UNCERTAINTY INDICATORS
-            usepuindxd_val, gepucurrent_val, gprhwc_val
+            usepuindxd_val, gepucurrent_val
             
         FROM imputed_yahoo_fred_data 
         ORDER BY date ASC
@@ -196,8 +196,7 @@ BEGIN
                 
                 -- NEW: FRED UNCERTAINTY INDICATORS
                 usepuindxd_1M_ret, usepuindxd_3M_ret, usepuindxd_6M_ret,
-                gepucurrent_1M_ret, gepucurrent_3M_ret, gepucurrent_6M_ret,
-                gprhwc_1M_ret, gprhwc_3M_ret, gprhwc_6M_ret
+                gepucurrent_1M_ret, gepucurrent_3M_ret, gepucurrent_6M_ret
             )
             VALUES (
                 v_today.date, v_target_class,
@@ -306,8 +305,7 @@ BEGIN
                 
                 -- NEW: FRED UNCERTAINTY INDICATORS
                 (v_today.usepuindxd_val / v_past_1m.usepuindxd_val) - 1, (v_today.usepuindxd_val / v_past_3m.usepuindxd_val) - 1, (v_today.usepuindxd_val / v_past_6m.usepuindxd_val) - 1,
-                (v_today.gepucurrent_val / v_past_1m.gepucurrent_val) - 1, (v_today.gepucurrent_val / v_past_3m.gepucurrent_val) - 1, (v_today.gepucurrent_val / v_past_6m.gepucurrent_val) - 1,
-                (v_today.gprhwc_val / v_past_1m.gprhwc_val) - 1, (v_today.gprhwc_val / v_past_3m.gprhwc_val) - 1, (v_today.gprhwc_val / v_past_6m.gprhwc_val) - 1
+                (v_today.gepucurrent_val / v_past_1m.gepucurrent_val) - 1, (v_today.gepucurrent_val / v_past_3m.gepucurrent_val) - 1, (v_today.gepucurrent_val / v_past_6m.gepucurrent_val) - 1
             );
             
         -- (The logic for the 'Live Prediction' point where v_future_6m IS NULL 

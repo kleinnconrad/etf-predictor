@@ -132,7 +132,6 @@ SOVEREIGN_YIELDS = [
 FRED_INDICATORS_UNCERTAINTY = [
     'USEPUINDXD',  # Economic Policy Uncertainty Index for United States
     'GEPUCURRENT', # Global Economic Policy Uncertainty Index
-    'GPRHWC',      # Geopolitical Risk Index
 ]
 
 # Combine all FRED indicators for the pipeline
