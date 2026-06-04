@@ -128,8 +128,15 @@ SOVEREIGN_YIELDS = [
     'BNDX'   # Vanguard Total International Bond ETF (Hedged non-US bonds)
 ]
 
+# FRED: Political & Economic Uncertainty
+FRED_INDICATORS_UNCERTAINTY = [
+    'USEPUINDXD',  # Economic Policy Uncertainty Index for United States
+    'GEPUCURRENT', # Global Economic Policy Uncertainty Index
+    'GPRHWC',      # Geopolitical Risk Index
+]
+
 # Combine all FRED indicators for the pipeline
-ALL_FRED_INDICATORS = FRED_INDICATORS + FRED_INDICATORS_EU + FRED_INDICATORS_JP + FRED_INDICATORS_UK
+ALL_FRED_INDICATORS = FRED_INDICATORS + FRED_INDICATORS_EU + FRED_INDICATORS_JP + FRED_INDICATORS_UK + FRED_INDICATORS_UNCERTAINTY
 
 # ==========================================
 # MASTER TICKER LIST (BATCH & SINGLE RUN)

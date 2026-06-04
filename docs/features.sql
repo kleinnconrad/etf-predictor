@@ -39,7 +39,10 @@ BEGIN
             -- NEW: FRED MACROECONOMIC INDICATORS (EU, UK, JP)
             cp00mi15ea20m086nest_val, lrhuttttezm156s_val, ecbassets_val, printo01ezq661s_val,
             gbrcpiallminmei_val, lrhuttttgbm156s_val, gbrproindmismei_val,
-            jpncpiallminmei_val, lrhuttttjpm156s_val, jpnassets_val, jpnproindmismei_val
+            jpncpiallminmei_val, lrhuttttjpm156s_val, jpnassets_val, jpnproindmismei_val,
+            
+            -- NEW: FRED UNCERTAINTY INDICATORS
+            usepuindxd_val, gepucurrent_val, gprhwc_val
             
         FROM imputed_yahoo_fred_data 
         ORDER BY date ASC
@@ -189,7 +192,12 @@ BEGIN
                 jpncpiallminmei_1M_ret, jpncpiallminmei_3M_ret, jpncpiallminmei_6M_ret,
                 lrhuttttjpm156s_1M_ret, lrhuttttjpm156s_3M_ret, lrhuttttjpm156s_6M_ret,
                 jpnassets_1M_ret, jpnassets_3M_ret, jpnassets_6M_ret,
-                jpnproindmismei_1M_ret, jpnproindmismei_3M_ret, jpnproindmismei_6M_ret
+                jpnproindmismei_1M_ret, jpnproindmismei_3M_ret, jpnproindmismei_6M_ret,
+                
+                -- NEW: FRED UNCERTAINTY INDICATORS
+                usepuindxd_1M_ret, usepuindxd_3M_ret, usepuindxd_6M_ret,
+                gepucurrent_1M_ret, gepucurrent_3M_ret, gepucurrent_6M_ret,
+                gprhwc_1M_ret, gprhwc_3M_ret, gprhwc_6M_ret
             )
             VALUES (
                 v_today.date, v_target_class,
@@ -294,7 +302,12 @@ BEGIN
                 (v_today.jpncpiallminmei_val / v_past_1m.jpncpiallminmei_val) - 1, (v_today.jpncpiallminmei_val / v_past_3m.jpncpiallminmei_val) - 1, (v_today.jpncpiallminmei_val / v_past_6m.jpncpiallminmei_val) - 1,
                 (v_today.lrhuttttjpm156s_val / v_past_1m.lrhuttttjpm156s_val) - 1, (v_today.lrhuttttjpm156s_val / v_past_3m.lrhuttttjpm156s_val) - 1, (v_today.lrhuttttjpm156s_val / v_past_6m.lrhuttttjpm156s_val) - 1,
                 (v_today.jpnassets_val / v_past_1m.jpnassets_val) - 1, (v_today.jpnassets_val / v_past_3m.jpnassets_val) - 1, (v_today.jpnassets_val / v_past_6m.jpnassets_val) - 1,
-                (v_today.jpnproindmismei_val / v_past_1m.jpnproindmismei_val) - 1, (v_today.jpnproindmismei_val / v_past_3m.jpnproindmismei_val) - 1, (v_today.jpnproindmismei_val / v_past_6m.jpnproindmismei_val)
+                (v_today.jpnproindmismei_val / v_past_1m.jpnproindmismei_val) - 1, (v_today.jpnproindmismei_val / v_past_3m.jpnproindmismei_val) - 1, (v_today.jpnproindmismei_val / v_past_6m.jpnproindmismei_val) - 1,
+                
+                -- NEW: FRED UNCERTAINTY INDICATORS
+                (v_today.usepuindxd_val / v_past_1m.usepuindxd_val) - 1, (v_today.usepuindxd_val / v_past_3m.usepuindxd_val) - 1, (v_today.usepuindxd_val / v_past_6m.usepuindxd_val) - 1,
+                (v_today.gepucurrent_val / v_past_1m.gepucurrent_val) - 1, (v_today.gepucurrent_val / v_past_3m.gepucurrent_val) - 1, (v_today.gepucurrent_val / v_past_6m.gepucurrent_val) - 1,
+                (v_today.gprhwc_val / v_past_1m.gprhwc_val) - 1, (v_today.gprhwc_val / v_past_3m.gprhwc_val) - 1, (v_today.gprhwc_val / v_past_6m.gprhwc_val) - 1
             );
             
         -- (The logic for the 'Live Prediction' point where v_future_6m IS NULL 
