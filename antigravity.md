@@ -24,6 +24,7 @@ This file contains foundational instructions and conventions for developing in t
 ## 5. Language & Documentation Style
 - **Tone:** Maintain a sober, objective, and professional tone across all documentation (including `README.md`).
 - **Vocabulary:** Use only as many adjectives as strictly required. Do not use superlatives (e.g., "fastest", "best", "most") or filler words.
+- **Emojis:** Do not use emojis anywhere in the codebase, documentation, or user interfaces.
 - **Docstrings:** All modules, classes, and public functions must include clear, structured docstrings (e.g., Google-style) detailing their purpose, arguments, and return types.
 
 ## 6. Linting & Validation

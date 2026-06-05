@@ -135,13 +135,26 @@
     <div id="error-msg" style="display: none;"></div>
 
     <div class="info-box">
-        <h4>ℹ️ Dual-Cutoff Entscheidungslogik</h4>
+        <h4>Dual-Cutoff Entscheidungslogik</h4>
         <ul>
             <li><strong>1. Down_prob (Prio 1):</strong> Überschreitet die <em>Prob Down</em> den <strong>KS Cutoff</strong>, wird das Signal auf <span style="color: var(--accent-down); font-weight: bold;">DOWN</span> gesetzt.</li>
             <li><strong>2. Up_prob (Prio 2):</strong> Ist das Risiko gering, muss die <em>Prob Up</em> eine harte Hürde (z. B. <strong>65%</strong>) nehmen, um ein <span style="color: var(--accent-up); font-weight: bold;">UP</span> Signal zu generieren.</li>
             <li><strong>3. Flat_prob:</strong> Greift keine der beiden Regeln, ist das Modell unentschlossen und deklariert den Markt als <span style="color: var(--accent-flat); font-weight: bold;">FLAT</span>.</li>
         </ul>
     </div>
+    
+    <div id="top-etfs-container" style="display: none; margin-bottom: 30px;">
+        <div class="info-box" style="border-left-color: var(--accent-up); background-color: #eafbee; margin-bottom: 0;">
+            <h4>Empfohlene Top ETFs</h4>
+            <p style="margin-top: 0; font-size: 0.9em; color: var(--text-muted);">
+                Diese ETFs werden vom Modell als <strong>UP</strong> klassifiziert, besitzen eine Modellgenauigkeit (CV Accuracy) von über <strong>50%</strong> und eine UP-Wahrscheinlichkeit unter <strong>90%</strong> (um potenziell fehlerhafte oder überangepasste Klassifikationen auszuschließen).
+            </p>
+            <div id="top-etfs-list" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
     <div class="metrics-grid">
         <div class="metric-card">
             <h3 style="margin:0; color: var(--text-muted);">Valide ETFs</h3>
@@ -165,21 +178,27 @@
         <div id="scatter-plot" style="width: 100%; height: 500px;"></div>
     </div>
 
+    <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h3 style="margin: 0;">Alle Ergebnisse</h3>
+        <div>
+            <input type="text" id="filter-input" placeholder="Ticker oder Prognose suchen..." style="padding: 8px; border: 1px solid var(--border); border-radius: 4px; width: 250px; font-family: inherit;" onkeyup="applyFilterAndSort()">
+        </div>
+    </div>
     <div style="overflow-x: auto;">
         <table id="data-table">
             <thead>
                 <tr>
-                    <th>Ticker</th>
-                    <th>Prognose</th>
-                    <th>Prob Up</th>
-                    <th>Prob Flat</th>
-                    <th>Prob Down</th>
-                    <th>CV Accuracy</th>
-                    <th>KS Cutoff</th>
+                    <th onclick="handleSort('ticker')">Ticker <span id="sort-icon-ticker">↕</span></th>
+                    <th onclick="handleSort('prediction_label')">Prognose <span id="sort-icon-prediction_label">↕</span></th>
+                    <th onclick="handleSort('prob_up')">Prob Up <span id="sort-icon-prob_up">↕</span></th>
+                    <th onclick="handleSort('prob_flat')">Prob Flat <span id="sort-icon-prob_flat">↕</span></th>
+                    <th onclick="handleSort('prob_down')">Prob Down <span id="sort-icon-prob_down">↕</span></th>
+                    <th onclick="handleSort('cv_accuracy')">CV Accuracy <span id="sort-icon-cv_accuracy">↕</span></th>
+                    <th onclick="handleSort('ks_cutoff')">KS Cutoff <span id="sort-icon-ks_cutoff">↕</span></th>
                 </tr>
             </thead>
             <tbody id="table-body">
-                </tbody>
+            </tbody>
         </table>
     </div>
 </div>
@@ -187,6 +206,10 @@
 <script>
     // Pfad zur JSON Datei (Da index.html im Root liegt, ist artifacts/... korrekt)
     const JSON_URL = 'artifacts/latest_batch_results.json';
+
+    let globalValidData = [];
+    let currentSortCol = 'cv_accuracy';
+    let currentSortAsc = false;
 
     async function loadData() {
         try {
@@ -222,11 +245,13 @@
 
     function processAndRender(results) {
         // 1. FILTER-LOGIK: Entferne invaliden Schrott
-        const validData = results.filter(item => {
+        globalValidData = results.filter(item => {
             const isQualityPassed = item.quality_gate_passed === true;
             const isKsValid = item.ks_cutoff !== "Infinity" && item.ks_cutoff !== null && !isNaN(item.ks_cutoff);
             return isQualityPassed && isKsValid;
         });
+
+        const validData = globalValidData;
 
         // 2. Metriken berechnen
         let countUp = 0, countDown = 0, countFlat = 0;
@@ -244,8 +269,11 @@
         // 3. Scatter Plot generieren
         renderPlot(validData);
 
-        // 4. Tabelle füllen
-        renderTable(validData);
+        // 4. Top ETFs generieren
+        renderTopEtfs(validData);
+
+        // 5. Tabelle füllen (mit Filter & Sort)
+        applyFilterAndSort();
     }
 
     function renderPlot(data) {
@@ -280,12 +308,93 @@
         Plotly.newPlot('scatter-plot', [traceUp, traceDown, traceFlat], layout, {responsive: true});
     }
 
+    function renderTopEtfs(data) {
+        const topEtfs = data.filter(item => 
+            item.prediction_label === "Up" && 
+            item.cv_accuracy > 0.50 && 
+            item.prob_up < 0.90
+        );
+
+        // Sortiere nach Prob Up (absteigend)
+        topEtfs.sort((a, b) => b.prob_up - a.prob_up);
+
+        const container = document.getElementById('top-etfs-container');
+        const listContainer = document.getElementById('top-etfs-list');
+        
+        if (topEtfs.length > 0) {
+            container.style.display = 'block';
+            listContainer.innerHTML = '';
+            topEtfs.forEach(item => {
+                const etfCard = document.createElement('div');
+                etfCard.style.cssText = 'background: white; border: 1px solid var(--accent-up); padding: 10px 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; min-width: 120px;';
+                etfCard.innerHTML = `
+                    <div style="font-weight: bold; font-size: 1.1em; margin-bottom: 5px;">${item.ticker}</div>
+                    <div style="font-size: 0.85em; color: var(--text-muted);">UP: ${(item.prob_up * 100).toFixed(1)}%</div>
+                    <div style="font-size: 0.85em; color: var(--text-muted);">CV Acc: ${(item.cv_accuracy * 100).toFixed(1)}%</div>
+                `;
+                listContainer.appendChild(etfCard);
+            });
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    function handleSort(col) {
+        if (currentSortCol === col) {
+            currentSortAsc = !currentSortAsc;
+        } else {
+            currentSortCol = col;
+            currentSortAsc = false; // Default absteigend
+            if (col === 'ticker' || col === 'prediction_label') {
+                currentSortAsc = true; // Strings default aufsteigend
+            }
+        }
+        applyFilterAndSort();
+    }
+
+    function applyFilterAndSort() {
+        const filterText = document.getElementById('filter-input').value.toLowerCase();
+        
+        // Filter
+        let filteredData = globalValidData.filter(item => {
+            return item.ticker.toLowerCase().includes(filterText) || 
+                   item.prediction_label.toLowerCase().includes(filterText);
+        });
+
+        // Sort
+        filteredData.sort((a, b) => {
+            let valA = a[currentSortCol];
+            let valB = b[currentSortCol];
+            
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return currentSortAsc ? -1 : 1;
+            if (valA > valB) return currentSortAsc ? 1 : -1;
+            return 0;
+        });
+
+        // Icons aktualisieren
+        const columns = ['ticker', 'prediction_label', 'prob_up', 'prob_flat', 'prob_down', 'cv_accuracy', 'ks_cutoff'];
+        columns.forEach(col => {
+            const iconSpan = document.getElementById(`sort-icon-${col}`);
+            if (iconSpan) {
+                if (col === currentSortCol) {
+                    iconSpan.innerHTML = currentSortAsc ? '↑' : '↓';
+                    iconSpan.style.color = 'inherit';
+                } else {
+                    iconSpan.innerHTML = '↕';
+                    iconSpan.style.color = '#ccc';
+                }
+            }
+        });
+
+        renderTable(filteredData);
+    }
+
     function renderTable(data) {
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = '';
-        
-        // Sortiere initial nach CV Accuracy (absteigend)
-        data.sort((a, b) => b.cv_accuracy - a.cv_accuracy);
 
         data.forEach(item => {
             let badgeClass = item.prediction_label === 'Up' ? 'bg-up' : item.prediction_label === 'Down' ? 'bg-down' : 'bg-flat';
