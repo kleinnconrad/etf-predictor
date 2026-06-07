@@ -5,6 +5,7 @@ import json
 import time
 import pandas as pd
 import numpy as np
+import re
 from google import genai
 from config import GEMINI_API_KEY
 
@@ -91,8 +92,8 @@ def generate_variable_audit_table(X_columns, p_values, selected_features, reject
     coef_dict = dict(zip(selected_features, importance))
     
     for i, col in enumerate(X_columns):
-        # Extract base ticker (e.g., 'AAPL_6M' becomes 'AAPL')
-        base_ticker = col.rsplit('_', 1)[0]
+        # Extract base ticker by removing the quantitative feature suffixes
+        base_ticker = re.sub(r'(_(21|63|126|252)D_(ret|diff)|_Dist_SMA200|_YoY_Accel_3M|_Roll_ZScore_2Y|_Level)$', '', col)
         p_val = p_values[i]
         
         # Assign status and impact

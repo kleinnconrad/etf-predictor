@@ -42,7 +42,7 @@ def get_llm_interpretation(coeff_df_string, target_etf, horizon_days, max_retrie
     You are a quantitative macro-analyst at a hedge fund. My model for predicting 
     the market state (Up, Down, Flat) for {target_etf} (Horizon: {horizon_months} months) has 
     selected and weighted the following predictors based on a stepwise variable selection 
-    (Suffixes at the end show the momentum window, e.g., _6M):
+    (Suffixes at the end show the momentum window or feature type, e.g., _126D_ret, _126D_diff, _Dist_SMA200, _Level):
     
     {coeff_df_string}
     

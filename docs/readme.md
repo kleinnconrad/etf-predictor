@@ -14,10 +14,13 @@ For every trading day in the dataset, the algorithm executes a backward-looking 
 * These ratios represent tangible market spreads (e.g., Copper/Gold for growth vs. inflation, HYG/LQD for credit stress, SPY/TLT for risk appetite).
 * By structuring features as spreads, the model reads relative outperformance rather than single-asset drift.
 
-#### 3. Rolling Momentum Transformation
-* Logistic regression requires stationary input variables. Absolute asset prices violate this requirement due to structural market drift.
-* The backward window calculates 1-month, 3-month, and 6-month percentage returns for all assets and the newly engineered ratios.
-* The pipeline drops all absolute prices after computing these percentage returns to enforce stationarity.
+#### 3. Advanced Quantitative Feature Engineering
+The pipeline applies distinct transformations depending on whether a variable is an absolute asset price (structurally drifting) or a rate/spread (naturally stationary):
+* **Preserving Stationary Levels:** For interest rates, spreads, and volatility indices (e.g., VIX, Yield Curve), the absolute levels are preserved as the model must recognize specific thresholds (e.g., yield curve inversion below 0).
+* **Multi-Timeframe Momentum:** The backward window calculates 1-month, 3-month, 6-month, and 1-year momentum. For prices, this is computed as percentage returns (`pct_change`). For rates/spreads, it is calculated as absolute point differences (`diff`).
+* **Distance to Trend (Mean Reversion):** Calculates the distance of an asset to its 200-day Simple Moving Average (SMA) to identify overextensions.
+* **Macro Acceleration (2nd Derivative):** Evaluates whether the 1-year macroeconomic trend is accelerating or decelerating compared to 3 months ago.
+* **Rolling Z-Scores (Regime Normalization):** Normalizes stress indicators (like VIX and Credit Spreads) over a rolling 2-year window to determine if current volatility is statistically abnormal for the specific market regime.
 
 <img src="https://github.com/kleinnconrad/etf-predictor/blob/main/docs/sliding_window.png?raw=true" width="50%">
 

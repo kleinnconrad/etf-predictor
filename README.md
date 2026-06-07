@@ -46,7 +46,12 @@ The model does not process absolute stock prices. The raw data undergoes a multi
 
 * **Raw Data Ingestion:** The pipeline retrieves the adjusted closing prices and macroeconomic indicators up to the current date.
 * **Deterministic Interaction Effects:** Instead of relying on brute-force polynomial features that introduce noise, the pipeline engineers specific economic ratios (e.g., Copper/Gold for growth vs. inflation, HYG/LQD for credit stress, SPY/TLT for risk appetite). This translates absolute prices into transparent, systemic market spreads.
-* **Rolling Momentum:** Absolute prices and ratios are converted into rolling percentage returns (`pct_change`) representing short- and medium-term momentum (1 month/21 days, 3 months/63 days, and 6 months/126 days). This ensures mathematical stationarity.
+* **Advanced Quantitative Features:** The pipeline no longer relies solely on percentage returns. It dynamically applies transformations based on the variable type:
+  * **Stationary Levels:** Absolute levels are explicitly preserved for interest rates and spreads, as their absolute thresholds (like a negative yield curve) are critical signals.
+  * **Multi-Timeframe Momentum:** Calculates 1-month, 3-month, 6-month, and 1-year momentum (using percentage returns for prices, and absolute differences for rates/spreads).
+  * **Mean Reversion & Overextension:** Measures the distance of an asset to its 200-day Simple Moving Average.
+  * **Macro Acceleration:** Computes the 2nd derivative of slow-moving macroeconomic indicators to detect if underlying trends are accelerating or slowing down.
+  * **Regime Normalization:** Applies rolling 2-year Z-scores to stress metrics (like VIX and credit spreads) to determine if current volatility is abnormal for the prevailing regime.
 * **Outlier Treatment (Winsorization):** Financial markets exhibit "fat tails." To prevent extreme market anomalies from causing "feature squashing" during normalization, variables are clipped at the 1st and 99th percentiles. Crucially, these thresholds are derived *exclusively* from the training set to prevent lookahead bias, and then applied identically to the live prediction row.
 * **Z-Score Normalization:** To prevent scale effects in the logistic regression, the clipped rolling returns are transformed into Z-scores using a `StandardScaler`. The final input variables measure the distance of a return from its 10-year mean in standard deviations.
 

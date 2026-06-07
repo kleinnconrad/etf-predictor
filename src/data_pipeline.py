@@ -72,7 +72,7 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
     # Type Enforcement: Force index to be DateTime to prevent ".shift() Got type Index" errors
     fred_raw.index = pd.to_datetime(fred_raw.index)
     
-    # Safe shifting
+    # Safe shifting to simulate real-world publication lag
     fred_shifted = fred_raw.shift(freq=pd.Timedelta(days=lag_days))
     
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: FRED API data download complete.", flush=True)
@@ -125,22 +125,81 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     safe_ratio('SPY', 'TLT', 'ratio_risk_on_off')
     safe_ratio('XLK', 'SPY', 'ratio_tech_dominance')
     safe_ratio('IGOV', 'TLT', 'ratio_intl_vs_us_bonds')
-    # -------------------------------------------------------------------------
     
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Calculating rolling momentum (Feature Engineering)...", flush=True)
-    windows = [21, 63, 126]
+    # -------------------------------------------------------------------------
+    # ADVANCED QUANTITATIVE FEATURE ENGINEERING
+    # -------------------------------------------------------------------------
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Engineering advanced quantitative features...", flush=True)
+    
+    # Lookback windows (1 month, 1 quarter, half year, 1 full year)
+    windows = [21, 63, 126, 252] 
 
-    # Build all columns at once to avoid DataFrame fragmentation
+    # Identify metrics (rates, spreads, quotas, sentiment) where pct_change() MUST NOT be applied
+    RATE_KEYWORDS = ['TNX', 'IRX', 'VIX', 'UNRATE', 'T10Y2Y', 'EPU', 'ratio_', 'HUTTTT', 'NFCI', 'BAML', 'UMCSENT']
+    
+    # Macroeconomic indicators for calculating "acceleration" (2nd derivative)
+    MACRO_KEYWORDS = ['CPIAUCSL', 'M2SL', 'PAYEMS', 'UNRATE', 'ASSETS', 'PROIND', 'PERMIT']
+
     col_dict = {}
+    
     for col in imputed_data.columns:
-        for w in windows:
-            col_dict[f'{col}_{w}D_ret'] = imputed_data[col].pct_change(w)
+        # Check: Is the column a rate/spread or a regular price/index?
+        is_rate_or_spread = any(kw in col for kw in RATE_KEYWORDS)
+        
+        # --- 0. PRESERVE STATIONARY LEVELS ---
+        # Spreads, ratios, and VIX are already stationary. 
+        # The model MUST see the absolute level (e.g., VIX at 35 or yield curve < 0).
+        if is_rate_or_spread:
+            col_dict[f'{col}_Level'] = imputed_data[col]
 
+        # --- 1. MULTI-TIMEFRAME MOMENTUM ---
+        for w in windows:
+            if is_rate_or_spread:
+                # Absolute change in points (e.g., yields rose by +0.5)
+                col_dict[f'{col}_{w}D_diff'] = imputed_data[col].diff(w)
+            else:
+                # Percentage change for prices (e.g., SPY rose by +10%)
+                col_dict[f'{col}_{w}D_ret'] = imputed_data[col].pct_change(w)
+                
+        # --- 2. DISTANCE TO TREND (MEAN REVERSION / 200-DAY SMA) ---
+        # Measures overextensions. If an index is 20% above its trend, it often signals danger.
+        sma_200 = imputed_data[col].rolling(window=200).mean()
+        if is_rate_or_spread:
+            col_dict[f'{col}_Dist_SMA200'] = imputed_data[col] - sma_200
+        else:
+            col_dict[f'{col}_Dist_SMA200'] = (imputed_data[col] / sma_200) - 1.0
+            
+        # --- 3. MACRO ACCELERATION (2ND DERIVATIVE) ---
+        # Is the 1-year macro trend accelerating compared to 3 months ago?
+        if any(kw in col for kw in MACRO_KEYWORDS):
+            if is_rate_or_spread:
+                current_1Y_change = imputed_data[col].diff(252)
+                past_1Y_change = imputed_data[col].shift(63).diff(252)
+            else:
+                current_1Y_change = imputed_data[col].pct_change(252)
+                past_1Y_change = imputed_data[col].shift(63).pct_change(252)
+            
+            col_dict[f'{col}_YoY_Accel_3M'] = current_1Y_change - past_1Y_change
+
+        # --- 4. ROLLING Z-SCORES (REGIME NORMALIZATION) ---
+        # Is the current volatility (VIX) or uncertainty normal for the current market environment?
+        if 'VIX' in col or 'credit_spread' in col or 'EPU' in col:
+            # 2-year window for the rolling baseline
+            roll_mean = imputed_data[col].rolling(window=504).mean()
+            # Add epsilon (1e-8) to avoid division by zero during temporarily flat spreads
+            roll_std = imputed_data[col].rolling(window=504).std() + 1e-8
+            col_dict[f'{col}_Roll_ZScore_2Y'] = (imputed_data[col] - roll_mean) / roll_std
+
+    # Assemble the feature matrix
     features = pd.DataFrame(col_dict, index=imputed_data.index)
 
-    # Clean Inf and NaN values caused by rolling calculations
+    # Clean Inf and NaN values caused by mathematical rolling operations
     features = features.replace([np.inf, -np.inf], np.nan)
 
+    # -------------------------------------------------------------------------
+    # TARGET VARIABLE CALCULATION
+    # -------------------------------------------------------------------------
+    # Calculate future return using the original imputed prices to preserve accuracy
     features['future_return'] = (
         imputed_data[target_ticker].shift(-forecast_horizon) 
         / imputed_data[target_ticker] - 1
@@ -170,7 +229,8 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     live_predict_row = live_predict_row.iloc[[-1]]
 
     # Drop rows where target_class is missing (live rows) or any feature is NaN
-    # This correctly removes the 126-day warmup period without leaking future data.
+    # This correctly removes the extended warmup period required by the 504-day rolling windows
+    # without leaking future data.
     training_matrix = features.dropna(subset=['target_class']).copy()
     training_matrix = training_matrix.dropna()
 
