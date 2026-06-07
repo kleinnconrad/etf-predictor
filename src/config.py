@@ -11,8 +11,10 @@ load_dotenv()
 # 1. DYNAMIC TIME WINDOWS
 # ==========================================
 END_DATE = datetime.today().strftime('%Y-%m-%d')
-# 10 years history for clean 126-day features and enough training data
-START_DATE = (datetime.today() - timedelta(days=365 * 10)).strftime('%Y-%m-%d')
+
+# Minimum history required for the dataset (used for target filtering and data fetching)
+MIN_YEARS_HISTORY = 10  
+START_DATE = (datetime.today() - timedelta(days=365 * MIN_YEARS_HISTORY)).strftime('%Y-%m-%d')
 
 # ==========================================
 # 2. PREDICTION TARGET & ECONOMIC PARAMETERS

@@ -6,9 +6,13 @@ import json
 import os
 import time
 from datetime import datetime, timedelta
+import sys
+
+# Add the src directory to path so we can import the centralized config
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+from config import MIN_YEARS_HISTORY
 
 # 1. Calibrated Metrics for Europe
-MIN_YEARS_HISTORY = 10  # 10 Years
 MIN_AVG_DAILY_TURNOVER_EUR = 1000000  # 1 Million Euro daily trading turnover
 CHUNK_SIZE = 100
 SLEEP_BETWEEN_CHUNKS = 5

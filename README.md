@@ -228,6 +228,8 @@ Training a model on highly correlated equities causes multicollinearity, providi
 * **Monetary Liquidity & Financial Conditions (FRED):** M2 Money Supply, Chicago Fed National Financial Conditions Index.
 * **Real Economic Leading Indicators (FRED):** New Privately-Owned Housing Units Authorized, Initial Claims for Unemployment.
 
+* **Macro Predictor History Constraint:** The pipeline enforces a centralized minimum history requirement (defined in `config.py`, currently 10 years) across all macro variables. A 365-day grace period is allowed for FRED publication lags, IPOs, or minor data gaps. Any individual predictor failing this check is proactively dropped to prevent the silent truncation of the overarching training dataset.
+
 To prevent lookahead bias, **FRED economic data** is structurally shifted forward by a 30-day publication lag before merging with the daily trading calendar. The pipeline calculates the 1-month, 3-month, and 6-month momentum for these combined base assets and economic indicators, yielding a final training matrix of approximately 150 distinct macroeconomic variables.
 
 ---
