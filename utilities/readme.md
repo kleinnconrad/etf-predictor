@@ -1,5 +1,9 @@
 # ETF Return Calculator (Germany)
 
+## Table of Contents
+- [Features](#features)
+- [How to Use](#how-to-use)
+
 ## Features
 
 * **True Compound Interest:** Calculates long-term growth by accurately compounding the annual returns over the holding period.

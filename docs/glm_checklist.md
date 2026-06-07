@@ -1,6 +1,13 @@
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/kleinnconrad/glm-checklist)
 
 
+## Table of Contents
+- [1. Data Preparation](#1-data-preparation)
+- [2. Feature Engineering & Selection](#2-feature-engineering--selection)
+- [3. Model Setup](#3-model-setup)
+- [4. Training & Validation (Validation Strategy)](#4-training--validation-validation-strategy)
+- [5. Model Evaluation & Business Metrics](#5-model-evaluation--business-metrics)
+
 ### 1. Data Preparation
 * **Imputation [✅ Pass]:** Missing values were appropriately replaced. *Implementation: Forward-fill (`.ffill()`) applied to lower-frequency FRED data upon merging to strictly prevent look-ahead bias.*
 * **Outlier Handling [✅ Pass]:** Extreme data points were identified and adequately handled. *Implementation: Deterministic Winsorization (clipping at 1st and 99th percentiles) derived exclusively from training data.*

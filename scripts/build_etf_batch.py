@@ -116,7 +116,7 @@ def _process_single_ticker_df(ticker, ticker_data, target_start_date, valid_etfs
         first_date = first_date.tz_localize(None)
         
     if first_date > target_start_date:
-        # print(f"  [REJECTED] {ticker} - Zu jung (Start: {first_date.strftime('%Y-%m')})")
+        # print(f"  [REJECTED] {ticker} - Too young (Start: {first_date.strftime('%Y-%m')})")
         return
 
     # 2. Check: Real liquidity (Turnover in Euro)
@@ -125,10 +125,10 @@ def _process_single_ticker_df(ticker, ticker_data, target_start_date, valid_etfs
     avg_turnover = (recent_data['Volume'] * recent_data['Close']).mean()
     
     if avg_turnover < MIN_AVG_DAILY_TURNOVER_EUR:
-        # print(f"  [REJECTED] {ticker} - Zu illiquide (Umsatz: {avg_turnover/1000000:.1f} Mio. €)")
+        # print(f"  [REJECTED] {ticker} - Too illiquid (Volume: {avg_turnover/1000000:.1f} M €)")
         return
 
-    print(f"  [OK] {ticker} (Target erreicht!)")
+    print(f"  [OK] {ticker} (Target reached!)")
     valid_etfs.append(ticker)
 
 if __name__ == "__main__":

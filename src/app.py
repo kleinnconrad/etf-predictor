@@ -68,18 +68,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 with st.sidebar:
-    st.title("Steuerung")
-    target_ticker = st.text_input("Ziel-ETF Ticker", value=TARGET_ETF).upper()
+    st.title("Controls")
+    target_ticker = st.text_input("Target ETF Ticker", value=TARGET_ETF).upper()
     st.divider()
     
-    st.caption("Modell-Parameter")
-    st.write(f"**Prognose-Horizont:** {FORECAST_HORIZON_DAYS} Tage")
-    st.write(f"**Basis-Inflation:** {ANNUAL_INFLATION_RATE*100}%")
-    st.write(f"**Up-Marge:** +{ANNUAL_MARGIN_UP*100}%")
-    st.write(f"**Down-Marge:** -{ANNUAL_MARGIN_DOWN*100}%")
+    st.caption("Model Parameters")
+    st.write(f"**Forecast Horizon:** {FORECAST_HORIZON_DAYS} Days")
+    st.write(f"**Base Inflation:** {ANNUAL_INFLATION_RATE*100}%")
+    st.write(f"**Up Margin:** +{ANNUAL_MARGIN_UP*100}%")
+    st.write(f"**Down Margin:** -{ANNUAL_MARGIN_DOWN*100}%")
     
     st.divider()
-    run_button = st.button("Analyse starten", use_container_width=True)
+    run_button = st.button("Start Analysis", use_container_width=True)
 
 st.markdown('<p class="hero-header">ETF Prediction Engine</p>', unsafe_allow_html=True)
 st.markdown('<p class="hero-sub">Multinomial logistic regression</p>', unsafe_allow_html=True)
@@ -87,10 +87,10 @@ st.markdown('<p class="hero-sub">Multinomial logistic regression</p>', unsafe_al
 if run_button:
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     
-    with st.status("Initialisiere Modell...", expanded=True) as status:
+    with st.status("Initializing Model...", expanded=True) as status:
         import time 
         
-        st.write("Lade Daten...")
+        st.write("Loading Data...")
         download_list = get_all_tickers()
         if target_ticker not in download_list:
             download_list.append(target_ticker)
@@ -98,23 +98,23 @@ if run_button:
         X, y, latest = get_data(target_ticker, tuple(download_list), timestamp)
         time.sleep(0.5) 
         
-        st.write("Fuehre ANOVA-Filter aus...")
+        st.write("Running ANOVA Filter...")
         time.sleep(0.5)
         
-        st.write("Starte Sequential Feature Selection...")
+        st.write("Starting Sequential Feature Selection...")
         results_dict = train_quant_model(X, y, latest, target_ticker, timestamp)
         
-        st.write("KS-Cutoff und generiere Audit-Reports...")
+        st.write("KS Cutoff and generating Audit Reports...")
         time.sleep(0.5)
         
         st.session_state.results = results_dict
         st.session_state.results["timestamp"] = timestamp
         st.session_state.analysis_done = True
         
-        status.update(label="Analyse erfolgreich abgeschlossen.", state="complete")
+        status.update(label="Analysis successfully completed.", state="complete")
 
 if not st.session_state.analysis_done:
-    st.subheader(f"Aktueller Kursverlauf: {target_ticker}")
+    st.subheader(f"Current Price Chart: {target_ticker}")
     try:
         ticker_data = yf.download(target_ticker, period="2y", interval="1d", progress=False)
         if not ticker_data.empty:
@@ -125,28 +125,28 @@ else:
     res = st.session_state.results
     
     # ---------------------------------------------------------
-    # ÄNDERUNG: Warnung anzeigen, aber Tabs trotzdem rendern!
+    # CHANGE: Show warning, but render tabs anyway!
     # ---------------------------------------------------------
     if not res["is_valid_quality"]:
-        st.error(f"Quality Gate nicht bestanden. Die Cross-Validation Accuracy ({res['cv_accuracy']:.2%}) ist zu niedrig.")
-        st.warning("Das Modell liefert auf dem aktuellen Daten-Subset keine Edge, die statistisch signifikant ueber reinem Raten liegt. Die nachfolgenden Reports sind mit extremer Vorsicht zu geniessen.")
+        st.error(f"Quality Gate failed. The Cross-Validation Accuracy ({res['cv_accuracy']:.2%}) is too low.")
+        st.warning("The model provides no edge on the current data subset that is statistically significantly better than random guessing. Use the following reports with extreme caution.")
     
-    # Die Tabs werden jetzt IMMER gerendert.
-    tab1, tab2, tab3, tab4 = st.tabs(["Uebersicht", "LLM Analyse", "Modell-Diagnostik", "Variablen-Audit"])
+    # Tabs are now ALWAYS rendered.
+    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "LLM Analysis", "Model Diagnostics", "Variable Audit"])
     
     with tab1:
-        st.subheader("Aktuelle Modell-Prognose")
+        st.subheader("Current Model Forecast")
         
         if res["prediction"] == 1:
-            st.success("Haupt-Signal: UP (Bullenmarkt erwartet)")
+            st.success("Main Signal: UP (Bull market expected)")
         elif res["prediction"] == -1:
-            st.error("Haupt-Signal: DOWN (Baerenmarkt / Crash-Gefahr)")
+            st.error("Main Signal: DOWN (Bear market / Crash risk)")
         else:
-            st.warning("Haupt-Signal: FLAT (Seitwaertsmarkt / Inflation schlaegt Rendite)")
+            st.warning("Main Signal: FLAT (Sideways market / Inflation beats return)")
             
-        st.caption(f"Sensitivitaet fuer Down-Signal datengetrieben optimiert (KS-Cutoff: {res['ks_cutoff']:.2%})")
+        st.caption(f"Sensitivity for Down signal data-driven optimized (KS-Cutoff: {res['ks_cutoff']:.2%})")
         
-        st.markdown("### Wahrscheinlichkeitsverteilung")
+        st.markdown("### Probability Distribution")
         probs = res["probabilities"]
         p_down = probs.get(-1, 0)
         p_flat = probs.get(0, 0)
@@ -154,27 +154,27 @@ else:
         
         col_d, col_f, col_u = st.columns(3)
         col_d.metric("Down (Crash)", f"{p_down:.1%}")
-        col_f.metric("Flat (Seitwaerts)", f"{p_flat:.1%}")
-        col_u.metric("Up (Bullenmarkt)", f"{p_up:.1%}")
+        col_f.metric("Flat (Sideways)", f"{p_flat:.1%}")
+        col_u.metric("Up (Bull Market)", f"{p_up:.1%}")
         
         st.divider()
-        st.markdown("**Die staerksten Makro-Treiber aktuell:**")
+        st.markdown("**The strongest current macro drivers:**")
         st.dataframe(res['X_optimal'].columns.tolist(), hide_index=True, use_container_width=True)
 
     with tab2:
-        st.subheader("Google Gemini interpretation")
+        st.subheader("Google Gemini Interpretation")
         md_path = f"output/feature_selection_{res['timestamp']}.md"
         if os.path.exists(md_path):
             with open(md_path, "r", encoding="utf-8") as f:
                 st.markdown(f.read())
         else:
-            st.info("Bericht wird im Hintergrund generiert oder ist nicht verfuegbar.")
+            st.info("Report is being generated in the background or is not available.")
 
     with tab3:
-        st.subheader("Modell-Diagnostik")
+        st.subheader("Model Diagnostics")
         st.markdown("""
-        Ein robustes Quant-Modell darf historische Daten nicht nur auswendig lernen (Overfitting). 
-        Die wahre Qualitaet zeigt sich in der **Out-of-Sample** Matrix rechts.
+        A robust quant model must not just memorize historical data (overfitting). 
+        The true quality is shown in the **Out-of-Sample** matrix on the right.
         """)
         
         col1, col2 = st.columns(2)
@@ -186,12 +186,12 @@ else:
                 st.pyplot(res["cm_fig_cv"], use_container_width=True)
 
     with tab4:
-        st.subheader("Variablen-Audit")
-        st.markdown("Dokumentation der statistischen Signifikanz aller potenziellen Praediktoren.")
+        st.subheader("Variable Audit")
+        st.markdown("Documentation of the statistical significance of all potential predictors.")
         
         audit_path = f"output/variable_audit_{res['timestamp']}.md"
         if os.path.exists(audit_path):
             with open(audit_path, "r", encoding="utf-8") as f:
                 st.markdown(f.read())
         else:
-            st.info("Das Variablen-Audit wurde fuer diesen Lauf nicht gefunden. Stelle sicher, dass `generate_variable_audit_table` erfolgreich durchlaeuft.")
+            st.info("The variable audit was not found for this run. Ensure that `generate_variable_audit_table` completes successfully.")
