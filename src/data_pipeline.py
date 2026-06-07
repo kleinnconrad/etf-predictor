@@ -106,6 +106,24 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Merging matrices and forward-filling...", flush=True)
     combined_data = master_calendar.join(fred_shifted, how='left')
     
+    # -------------------------------------------------------------------------
+    # HARD HISTORY CHECK: Protect against predictors with insufficient history
+    # -------------------------------------------------------------------------
+    start_dt = pd.to_datetime(start_date)
+    cols_to_drop = []
+    # Allow a 365-day (1 year) grace period. 
+    # Any variable starting within 1 year of the 10-year mark is kept.
+    grace_period = start_dt + pd.Timedelta(days=365) 
+    
+    for col in combined_data.columns:
+        first_valid = combined_data[col].first_valid_index()
+        if first_valid is not None and first_valid > grace_period:
+            print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE WARNING: Predictor '{col}' violates minimum history (starts {first_valid.strftime('%Y-%m-%d')}). Dropping column to protect dataset length.", flush=True)
+            cols_to_drop.append(col)
+            
+    if cols_to_drop:
+        combined_data = combined_data.drop(columns=cols_to_drop)
+
     # Uses the new Pandas syntax to avoid FutureWarning
     imputed_data = combined_data.ffill().infer_objects(copy=False).dropna(axis=1, how='all').dropna()
     

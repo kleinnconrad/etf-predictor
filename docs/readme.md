@@ -1,5 +1,13 @@
 ### Feature Engineering Architecture
 
+**Table of Contents**
+- [1. Data Merging & Imputation](#1-data-merging--imputation)
+- [2. Interaction Effects (Macro Ratios)](#2-interaction-effects-macro-ratios)
+- [3. Advanced Quantitative Feature Engineering](#3-advanced-quantitative-feature-engineering)
+- [4. Temporal Boundaries & Target Isolation](#4-temporal-boundaries--target-isolation)
+- [5. Outlier Treatment (Winsorization)](#5-outlier-treatment-winsorization)
+- [6. Z-Score Normalization](#6-z-score-normalization)
+
 The feature engineering pipeline processes a 10-year historical dataset using a row-by-row sliding window. This continuous timeframe captures multiple macroeconomic regimes and establishes a statistical baseline for feature scaling. 
 
 For every trading day in the dataset, the algorithm executes a backward-looking function to engineer predictor variables and a forward-looking function to establish the target classification. 
@@ -8,6 +16,7 @@ For every trading day in the dataset, the algorithm executes a backward-looking 
 * Macroeconomic indicators sourced from FRED are published at lower frequencies (typically monthly) than daily equity pricing. 
 * To reconcile these datasets, the pipeline applies a forward-fill imputation strategy upon merging. Each daily observation for a macroeconomic variable inherits the most recent published value, ensuring the model exclusively consumes "point-in-time" verified data. 
 * This logic forces the algorithm to recognize macro regime shifts only as they occur, preventing look-ahead bias and aligning physical economic reality with high-frequency market dynamics.
+* **Hard History Validation:** After merging, the pipeline evaluates the historical length of each individual macro predictor against a centralized minimum history parameter (e.g., 10 years). Predictors that violate this threshold (allowing for a 365-day grace period for publication lags) are explicitly dropped. This prevents a single short-history variable from silently truncating the entire multi-year dataset during NA-dropping.
 
 #### 2. Interaction Effects (Macro Ratios)
 * Instead of relying on raw asset prices, the pipeline deterministically engineers specific economic ratios (Interaction Effects) directly into the historical matrix.

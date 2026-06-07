@@ -356,6 +356,32 @@ BEGIN
         -- would follow the exact same INSERT pattern, simply omitting the target_class)
         END IF;
 
+        -- ========================================================================
+        -- NOTE ON DYNAMIC FEATURE ENGINEERING (e.g., 2nd Derivative)
+        -- The Python data_pipeline.py generates additional advanced variations 
+        -- beyond simple 1M/3M/6M percentage returns. In a SQL context, these 
+        -- would be engineered as follows:
+        --
+        -- 1. MACRO ACCELERATION / 2ND DERIVATIVE (e.g., m2sl_YoY_Accel_3M)
+        -- Calculates the Year-over-Year (252-day) growth rate today, minus the YoY growth rate 3 months ago (63 days).
+        -- ( (v_today.m2sl_val - v_past_1y.m2sl_val) / v_past_1y.m2sl_val ) 
+        -- - ( (v_past_3m.m2sl_val - v_past_1y_and_3m.m2sl_val) / v_past_1y_and_3m.m2sl_val )
+        --
+        -- 2. DISTANCE TO SMA200 (e.g., eurusd_Dist_SMA200)
+        -- ( v_today.eurusd_price / AVG(price) OVER (ORDER BY date ROWS BETWEEN 200 PRECEDING AND CURRENT ROW) ) - 1
+        --
+        -- 3. ABSOLUTE POINT MOMENTUM (e.g., unrate_126D_diff)
+        -- Used for stationary variables like interest rates or unemployment instead of percentages.
+        -- v_today.unrate_val - v_past_6m.unrate_val
+        --
+        -- 4. REGIME NORMALIZATION (e.g., vix_Roll_ZScore_2Y)
+        -- ( v_today.vix_price - AVG(vix_price) OVER (ORDER BY date ROWS BETWEEN 504 PRECEDING AND CURRENT ROW) ) 
+        -- / STDDEV(vix_price) OVER (ORDER BY date ROWS BETWEEN 504 PRECEDING AND CURRENT ROW)
+        --
+        -- 5. ABSOLUTE LEVEL PRESERVATION (e.g., gepucurrent_Level)
+        -- v_today.gepucurrent_val
+        -- ========================================================================
+
     END LOOP;
     
     RAISE NOTICE 'Processed % rows. Feature Engineering Complete.', v_row_counter;
