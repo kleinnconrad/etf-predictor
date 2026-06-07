@@ -129,7 +129,8 @@
 <div class="container">
     <div class="header">
         <h1>ETF Quant Engine - Batch Analysis</h1>
-        <p id="execution-time" style="color: var(--text-muted);">Loading data...</p>
+        <p id="execution-time" style="color: var(--text-muted); margin-bottom: 5px;">Loading data...</p>
+        <p id="baseline-params" style="color: var(--text-muted); font-size: 0.9em; margin-top: 0;"></p>
     </div>
 
     <div id="error-msg" style="display: none;"></div>
@@ -147,7 +148,7 @@
         <div class="info-box" style="border-left-color: var(--accent-up); background-color: #eafbee; margin-bottom: 0;">
             <h4>Recommended Top ETFs</h4>
             <p style="margin-top: 0; font-size: 0.9em; color: var(--text-muted);">
-                These ETFs are classified as <strong>UP</strong> by the model, have a model accuracy (CV Accuracy) of over <strong>50%</strong>, and an UP probability below <strong>90%</strong> (to exclude potentially faulty or overfitted classifications).
+                These ETFs are classified as <strong>UP</strong> by the model, have a model accuracy (CV Accuracy) of over <strong>65%</strong>, and an UP probability below <strong>90%</strong> (to exclude potentially faulty or overfitted classifications).
             </p>
             <div id="top-etfs-list" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
                 <!-- Dynamically populated -->
@@ -235,6 +236,14 @@
                 document.getElementById('execution-time').innerText = `Successfully loaded`;
             }
             
+            // Show baseline parameters
+            if (data.baseline_parameters) {
+                document.getElementById('baseline-params').innerHTML = 
+                    `<b>Parameters:</b> Inflation: ${(data.baseline_parameters.annual_inflation_rate*100).toFixed(1)}% | 
+                     Margin Up: ${(data.baseline_parameters.annual_margin_up*100).toFixed(1)}% | 
+                     Margin Down: ${(data.baseline_parameters.annual_margin_down*100).toFixed(1)}%`;
+            }
+            
             processAndRender(data.results);
         } catch (error) {
             console.error("Error loading or parsing JSON:", error);
@@ -311,7 +320,7 @@
     function renderTopEtfs(data) {
         const topEtfs = data.filter(item => 
             item.prediction_label === "Up" && 
-            item.cv_accuracy > 0.50 && 
+            item.cv_accuracy > 0.65 && 
             item.prob_up < 0.90
         );
 
