@@ -134,8 +134,45 @@ FRED_INDICATORS_UNCERTAINTY = [
     'GEPUCURRENT', # Global Economic Policy Uncertainty Index
 ]
 
+# ==========================================
+# 4. FRÜHINDIKATOREN & LIQUIDITÄT (6-12 MONATE HORIZONT)
+# ==========================================
+
+# Monetäre Liquidität & Finanzbedingungen (FRED)
+# Wirken meist mit 6-12 Monaten Verzögerung auf die Realwirtschaft und Märkte
+FRED_LIQUIDITY_AND_CREDIT = [
+    'M2SL',           # M2 Money Supply (Die echte Geldmenge im System - der Treibstoff für Asset-Preise)
+    'NFCI',           # Chicago Fed National Financial Conditions Index (Misst systemischen Stress & Liquidität)
+    'BAMLH0A0HYM2',   # US High Yield Option-Adjusted Spread (Echter Risikoaufschlag, isoliert von Zinsänderungen)
+]
+
+# Reale Wirtschaftliche Frühindikatoren (FRED)
+# Führen den Konjunkturzyklus oft um 2-3 Quartale an
+FRED_LEADING_MACRO = [
+    'PERMIT',         # New Privately-Owned Housing Units Authorized (Baugenehmigungen führen den Wirtschaftszyklus an)
+    'ICSA',           # Initial Claims for Unemployment (Wöchentliche Erstanträge, reagiert Monate vor der Arbeitslosenquote)
+    'UMCSENT',        # Univ. of Michigan: Consumer Sentiment (Konsum macht 70% des US-BIP aus)
+    'DGORDER',        # Manufacturers' New Orders: Durable Goods (Auftragseingänge der Industrie für langlebige Güter)
+]
+
+# Markt-Zyklik & Faktor-ETFs (Yahoo Finance)
+# Die Rotation zwischen diesen Faktoren kündigt oft langfristige Markttrends an
+FACTOR_ETFS = [
+    'IWM',            # Russell 2000 ETF (Small Caps - hochgradig abhängig von der Binnenwirtschaft, drehen meist als Erstes)
+    'IYT',            # Transportation Average ETF (Dow-Theorie: Transport bestätigt Industriewachstum)
+    'RSP',            # S&P 500 Equal Weight (Zeigt die wahre Marktbreite, unbeeinflusst von wenigen Tech-Giganten)
+    'SMH',            # Semiconductor ETF (Halbleiter sind der extremste Frühindikator für den globalen Tech-Zyklus)
+]
+
+# Spezifische Frühindikator-Rohstoffe & Währungen (Yahoo Finance)
+MORE_COMMODITIES_AND_FX = [
+    'LBS=F',          # Random Length Lumber (Bauholz - extremer Frühindikator für den US-Immobilienmarkt)
+    'EURUSD=X',       # Euro / US-Dollar
+    'JPY=X',          # USD / Japanese Yen (Der wichtigste Proxy für den globalen "Carry-Trade" und Systemrisiken)
+]
+
 # Combine all FRED indicators for the pipeline
-ALL_FRED_INDICATORS = FRED_INDICATORS + FRED_INDICATORS_EU + FRED_INDICATORS_JP + FRED_INDICATORS_UK + FRED_INDICATORS_UNCERTAINTY
+ALL_FRED_INDICATORS = FRED_INDICATORS + FRED_INDICATORS_EU + FRED_INDICATORS_JP + FRED_INDICATORS_UK + FRED_INDICATORS_UNCERTAINTY + FRED_LIQUIDITY_AND_CREDIT + FRED_LEADING_MACRO
 
 # ==========================================
 # MASTER TICKER LIST (BATCH & SINGLE RUN)
@@ -148,7 +185,7 @@ ALL_TICKERS = list(set(
     CREDIT_RISK + SECTORS_AND_INDICES + MORE_SECTORS + 
     REAL_ESTATE + CRYPTO + 
     TICKERS_US + TICKERS_DE + TICKERS_UK + TICKERS_JP +
-    SOVEREIGN_YIELDS
+    SOVEREIGN_YIELDS + FACTOR_ETFS + MORE_COMMODITIES_AND_FX
 ))
 
 def get_all_tickers():
@@ -156,6 +193,6 @@ def get_all_tickers():
     return ALL_TICKERS
 
 # ==========================================
-# 4. LLM CONFIGURATION
+# 5. LLM CONFIGURATION
 # ==========================================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
