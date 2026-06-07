@@ -147,7 +147,6 @@ FRED_INDICATORS_UNCERTAINTY = [
 FRED_LIQUIDITY_AND_CREDIT = [
     'M2SL',           # M2 Money Supply (The true money supply in the system - the fuel for asset prices)
     'NFCI',           # Chicago Fed National Financial Conditions Index (Measures systemic stress & liquidity)
-    'BAMLH0A0HYM2',   # US High Yield Option-Adjusted Spread (True risk premium, isolated from interest rate changes)
 ]
 
 # Real Economic Leading Indicators (FRED)
