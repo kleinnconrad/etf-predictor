@@ -220,6 +220,8 @@ Training a model on highly correlated equities causes multicollinearity, providi
 * **Alternative Liquidity:** Bitcoin.
 * **Systemic Equities:** Global leading corporations across US, EU, UK, and JP markets.
 * **Hard Macroeconomics (FRED):** Realized inflation (CPI), employment metrics (Nonfarm Payrolls, Unemployment Rate), systemic liquidity (Central Bank Assets), and leading recessionary indicators (10Y-2Y Treasury Spread) across major industrial nations.
+* **Monetary Liquidity & Financial Conditions (FRED):** M2 Money Supply, Chicago Fed National Financial Conditions Index, US High Yield Option-Adjusted Spread.
+* **Real Economic Leading Indicators (FRED):** New Privately-Owned Housing Units Authorized, Initial Claims for Unemployment.
 
 To prevent lookahead bias, **FRED economic data** is structurally shifted forward by a 30-day publication lag before merging with the daily trading calendar. The pipeline calculates the 1-month, 3-month, and 6-month momentum for these combined base assets and economic indicators, yielding a final training matrix of approximately 150 distinct macroeconomic variables.
 
