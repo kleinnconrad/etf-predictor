@@ -143,7 +143,7 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
         return response
         
     except Exception as e:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR bei Ticker {ticker}: {e}", flush=True)
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR for Ticker {ticker}: {e}", flush=True)
         return {"ticker": ticker, "status": "Failed", "error": str(e)}
 
 def execute_batch_processing(runner_id, total_runners):

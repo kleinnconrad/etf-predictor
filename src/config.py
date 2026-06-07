@@ -2,6 +2,10 @@
 
 import os
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # ==========================================
 # 1. DYNAMIC TIME WINDOWS

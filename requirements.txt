@@ -7,3 +7,4 @@ seaborn
 google-genai
 streamlit
 fredapi
+python-dotenv
