@@ -7,9 +7,9 @@ import os
 import time
 from datetime import datetime, timedelta
 
-# 1. Kalibrierte Metriken für Europa
-MIN_YEARS_HISTORY = 10  # 10 Jahre
-MIN_AVG_DAILY_TURNOVER_EUR = 1000000  # 1 Million Euro täglicher Handelsumsatz
+# 1. Calibrated Metrics for Europe
+MIN_YEARS_HISTORY = 10  # 10 Years
+MIN_AVG_DAILY_TURNOVER_EUR = 1000000  # 1 Million Euro daily trading turnover
 CHUNK_SIZE = 100
 SLEEP_BETWEEN_CHUNKS = 5
 
@@ -18,16 +18,16 @@ def main():
     seed_file_path = os.path.join(project_root, 'config', 'all_etfs_seed.txt')
     
     if not os.path.exists(seed_file_path):
-        print(f"Fehler: Seed-Datei nicht gefunden unter {seed_file_path}")
+        print(f"Error: Seed file not found at {seed_file_path}")
         return
 
     with open(seed_file_path, 'r') as f:
         all_tickers = [line.strip() for line in f if line.strip()]
         
     print("\n" + "="*60)
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] STARTE KALIBRIERTES XETRA-SCREENING")
-    print(f"Bedingungen: > {MIN_YEARS_HISTORY} Jahre Historie UND > 1 Mio. € Tagesumsatz")
-    print(f"Prüfe {len(all_tickers)} Ticker in Chunks von {CHUNK_SIZE} (Rate-Limit geschützt)...")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] STARTING CALIBRATED XETRA SCREENING")
+    print(f"Conditions: > {MIN_YEARS_HISTORY} years history AND > 1 M € daily turnover")
+    print(f"Checking {len(all_tickers)} tickers in chunks of {CHUNK_SIZE} (rate limit protected)...")
     print("="*60 + "\n")
     
     valid_etfs = []
@@ -44,7 +44,7 @@ def main():
     chunks = [all_tickers[i:i + CHUNK_SIZE] for i in range(0, len(all_tickers), CHUNK_SIZE)]
     
     for idx, chunk in enumerate(chunks):
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Lade Chunk {idx + 1}/{len(chunks)} ({len(chunk)} Ticker)...")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Loading Chunk {idx + 1}/{len(chunks)} ({len(chunk)} Tickers)...")
         
         try:
             # group_by="ticker" creates a MultiIndex where level 0 is the Ticker and level 1 is OHLCV
@@ -54,7 +54,7 @@ def main():
             if len(chunk) == 1:
                 ticker = chunk[0]
                 if df.empty:
-                    print(f"  [REJECTED] {ticker} - Keine Daten gefunden")
+                    print(f"  [REJECTED] {ticker} - No data found")
                 else:
                     _process_single_ticker_df(ticker, df, target_start_date, valid_etfs)
                 continue
@@ -65,31 +65,31 @@ def main():
             
             for ticker in chunk:
                 if ticker not in downloaded_tickers:
-                    print(f"  [REJECTED] {ticker} - Keine Daten gefunden / API Timeout")
+                    print(f"  [REJECTED] {ticker} - No data found / API Timeout")
                     continue
                     
                 # Extract the subset for this specific ticker
                 ticker_data = df[ticker].dropna(subset=['Close', 'Volume'])
                 
                 if ticker_data.empty:
-                    print(f"  [REJECTED] {ticker} - Keine verwertbaren Preisdaten in diesem Zeitraum")
+                    print(f"  [REJECTED] {ticker} - No usable price data in this period")
                     continue
                     
                 _process_single_ticker_df(ticker, ticker_data, target_start_date, valid_etfs)
                 
         except Exception as e:
-            print(f"Fehler bei Chunk {idx + 1}: {e}")
+            print(f"Error at Chunk {idx + 1}: {e}")
             
         # Intentional delay to avoid getting IP-banned by Yahoo Finance
         if idx < len(chunks) - 1:
-            print(f"  > Pausiere {SLEEP_BETWEEN_CHUNKS} Sekunden zum Schutz vor Rate-Limits...")
+            print(f"  > Pausing for {SLEEP_BETWEEN_CHUNKS} seconds to protect against rate limits...")
             time.sleep(SLEEP_BETWEEN_CHUNKS)
 
     valid_etfs.sort()
 
     print("\n" + "="*60)
-    print(f"SELEKTION ABGESCHLOSSEN!")
-    print(f"{len(valid_etfs)} hochliquide, bewährte ETFs stehen für das Modell bereit.")
+    print(f"SELECTION COMPLETED!")
+    print(f"{len(valid_etfs)} highly liquid, proven ETFs are ready for the model.")
     print("="*60)
     
     output_dir = os.path.join(project_root, 'config')
@@ -103,7 +103,7 @@ def main():
             "tickers": valid_etfs
         }, f, indent=4)
         
-    print(f"Batch-Ziele gespeichert unter: {output_path}")
+    print(f"Batch targets saved at: {output_path}")
 
 def _process_single_ticker_df(ticker, ticker_data, target_start_date, valid_etfs):
     """

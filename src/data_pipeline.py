@@ -17,7 +17,7 @@ import time
 import os
 import socket
 
-# Globaler Sicherheits-Timeout für die API
+# Global security timeout for the API
 socket.setdefaulttimeout(15.0)
 
 def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
@@ -56,18 +56,18 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
             continue 
             
     # =========================================================================
-    # HARTE FEHLERPRÜFUNG (ANTI DATA-LEAKAGE)
+    # HARD ERROR CHECKING (ANTI DATA-LEAKAGE)
     # =========================================================================
     if failed_tickers:
-        # Das Skript MUSS abstürzen, wenn FRED-Daten fehlen, sonst lernt der Batch-Lauf 
-        # auf einem kleineren/falschen Feature-Set als dein lokaler Test!
-        raise ValueError(f"CRITICAL: FRED API Timeout für {failed_tickers}. Lokale und Batch-Features wären asynchron!")
+        # The script MUST crash if FRED data is missing, otherwise the batch run learns 
+        # on a smaller/incorrect feature set than your local test!
+        raise ValueError(f"CRITICAL: FRED API Timeout for {failed_tickers}. Local and batch features would be asynchronous!")
             
     fred_raw = pd.concat(series_list, axis=1)
 
     # API Crash Protection: Ensure data is not completely empty
     if fred_raw.empty:
-        raise ValueError("FRED API lieferte eine komplett leere Matrix. Höchstwahrscheinlich wurde das Rate-Limit überschritten!")
+        raise ValueError("FRED API returned a completely empty matrix. Most likely the rate limit was exceeded!")
 
     # Type Enforcement: Force index to be DateTime to prevent ".shift() Got type Index" errors
     fred_raw.index = pd.to_datetime(fred_raw.index)
@@ -81,10 +81,10 @@ def fetch_and_lag_fred_data(start_date, end_date, lag_days=30):
 def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, forecast_horizon=126, pre_fetched_yahoo=None, pre_fetched_fred=None, **kwargs):
     """
     Ingests, merges, and engineers features for the trading calendar.
-    Nutzt vorab geladene DataFrames im Batch-Modus, um Mehrfach-Downloads zu verhindern.
+    Uses pre-fetched DataFrames in batch mode to prevent multiple downloads.
     """
     
-    # 1. Yahoo Finance Ingestion (Lokal oder via Netzwerk)
+    # 1. Yahoo Finance Ingestion (Local or via Network)
     if pre_fetched_yahoo is not None:
         raw_yahoo = pre_fetched_yahoo.copy()
         print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Using pre-fetched Yahoo Finance data.", flush=True)
@@ -95,7 +95,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     
     master_calendar = raw_yahoo.dropna(subset=[target_ticker])
     
-    # 2. FRED Ingestion (Lokal oder via Netzwerk)
+    # 2. FRED Ingestion (Local or via Network)
     if pre_fetched_fred is not None:
         fred_shifted = pre_fetched_fred.copy()
         print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Using pre-fetched FRED data.", flush=True)
@@ -106,7 +106,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Merging matrices and forward-filling...", flush=True)
     combined_data = master_calendar.join(fred_shifted, how='left')
     
-    # Nutzt die neue Pandas Syntax, um FutureWarning zu vermeiden
+    # Uses the new Pandas syntax to avoid FutureWarning
     imputed_data = combined_data.ffill().infer_objects(copy=False).dropna(axis=1, how='all').dropna()
     
     # -------------------------------------------------------------------------
@@ -146,8 +146,8 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
         / imputed_data[target_ticker] - 1
     )
     
-    # --- DYNAMISCHE THRESHOLD-BERECHNUNG ---
-    # Skaliert die jährlichen Raten auf den Vorhersagehorizont
+    # --- DYNAMIC THRESHOLD CALCULATION ---
+    # Scales the annual rates to the forecast horizon
     time_scaling = forecast_horizon / TRADING_DAYS_PER_YEAR
     
     threshold_up = (ANNUAL_INFLATION_RATE + ANNUAL_MARGIN_UP) * time_scaling
@@ -166,7 +166,7 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     # Separate live rows BEFORE any dropna, so they aren't wiped out
     live_predict_row = features[features['target_class'].isna()].copy()
     
-    # Isoliere ausschließlich den absolut aktuellsten Handelstag (Heute)
+    # Isolate exclusively the absolutely most recent trading day (Today)
     live_predict_row = live_predict_row.iloc[[-1]]
 
     # Drop rows where target_class is missing (live rows) or any feature is NaN
@@ -190,14 +190,14 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     # =========================================================================
     print(f"  [{datetime.now().strftime('%H:%M:%S')}] PIPELINE: Clipping outliers at 1st and 99th percentiles...", flush=True)
     
-    # 1. Berechne die harten Limits NUR auf Basis der Trainingsdaten
+    # 1. Calculate the hard limits ONLY based on the training data
     lower_bounds = training_matrix[feature_cols].quantile(0.01)
     upper_bounds = training_matrix[feature_cols].quantile(0.99)
     
-    # 2. Kappe alle extremen Ausreißer auf diese Limits im Trainingsset
+    # 2. Cap all extreme outliers to these limits in the training set
     training_matrix[feature_cols] = training_matrix[feature_cols].clip(lower=lower_bounds, upper=upper_bounds, axis=1)
     
-    # 3. Wende exakt dieselben Limits auf den Live-Datenpunkt an
+    # 3. Apply exactly the same limits to the live data point
     live_predict_row[feature_cols] = live_predict_row[feature_cols].clip(lower=lower_bounds, upper=upper_bounds, axis=1)
     # =========================================================================
 

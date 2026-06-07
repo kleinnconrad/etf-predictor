@@ -31,33 +31,33 @@ def calculate_smoothed_weights(y_data, smoothing='log'):
 
 def get_llm_interpretation(coeff_df_string, target_etf, horizon_days, max_retries=3, delay=10):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
-        return "> *Kein API-Key hinterlegt. LLM-Analyse uebersprungen.*"
+        return "> *No API key provided. LLM analysis skipped.*"
     
-    # Berechne grob die Monate fuer den Prompt (21 Handelstage = 1 Monat)
+    # Roughly calculate the months for the prompt (21 trading days = 1 month)
     horizon_months = max(1, horizon_days // 21)
     
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     prompt = f"""
-    Du bist ein quantitativer Macro-Analyst eines Hedgefonds. Mein Modell zur Vorhersage 
-    des Marktzustandes (Up, Down, Flat) fuer den {target_etf} (Horizont: {horizon_months} Monate) hat 
-    basierend auf einer Schrittweisen Variablenselektion folgende Praediktoren ausgewaehlt 
-    und gewichtet (Kuerzel am Ende zeigen das Momentum-Fenster, z.B. _6M):
+    You are a quantitative macro-analyst at a hedge fund. My model for predicting 
+    the market state (Up, Down, Flat) for {target_etf} (Horizon: {horizon_months} months) has 
+    selected and weighted the following predictors based on a stepwise variable selection 
+    (Suffixes at the end show the momentum window, e.g., _6M):
     
     {coeff_df_string}
     
-    Liefere eine hochgradig elaborierte, aber extrem praezise oekonomische Einschaetzung, 
-    warum dieses spezifische Set an Indikatoren aktuell vorlaufend wirkt. 
+    Provide a highly elaborate but extremely precise economic assessment of 
+    why this specific set of indicators currently acts as a leading indicator. 
     
-    Regeln fuer die Ausgabe:
-    - Absolutes Verbot von Fliesstexten und Geschwafel. 
-    - Antworte ausschliesslich in knackigen Spiegelstrichen.
-    - Nutze harte, institutionelle Logik (Korrelationen, Zinsstruktur, Sektor-Rotationen).
+    Rules for the output:
+    - Absolute ban on continuous text and rambling. 
+    - Answer exclusively in crisp bullet points.
+    - Use hard, institutional logic (correlations, yield curve, sector rotations).
     
-    Strukturiere deine Antwort zwingend in diese drei kurzen Bloecke:
-    **1. Makrooekonomisches Setup:** (Warum wurden Zinsen/Waehrungen/Rohstoffe gewaehlt oder ignoriert?)
-    **2. Sektor- & Marktdynamik:** (Was verraten die ausgewaehlten Equities/Sektoren ueber den Konjunkturzyklus?)
-    **3. Quant-Konklusion:** (Was ist das uebergeordnete Narrativ fuer den {target_etf} in den naechsten {horizon_months} Monaten?)
+    Structure your answer strictly into these three short blocks:
+    **1. Macroeconomic Setup:** (Why were interest rates/currencies/commodities chosen or ignored?)
+    **2. Sector & Market Dynamics:** (What do the selected equities/sectors reveal about the business cycle?)
+    **3. Quant Conclusion:** (What is the overarching narrative for {target_etf} in the next {horizon_months} months?)
     """
     
     for attempt in range(max_retries):
@@ -71,19 +71,19 @@ def get_llm_interpretation(coeff_df_string, target_etf, horizon_days, max_retrie
             error_msg = str(e).upper()
             if any(err in error_msg for err in ["429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE"]):
                 if attempt < max_retries - 1:
-                    print(f"Google Server-Spike (503/429). Versuch {attempt+1}/{max_retries} fehlgeschlagen. Warte {delay} Sekunden...")
+                    print(f"Google Server-Spike (503/429). Attempt {attempt+1}/{max_retries} failed. Waiting {delay} seconds...")
                     time.sleep(delay)
                     continue
-            return f"> *Fehler bei der LLM-Abfrage: {e}*"
+            return f"> *Error during LLM request: {e}*"
 
-# --- NEUE FUNKTION: DUAL CUTOFF ---
+# --- NEW FUNCTION: DUAL CUTOFF ---
 def apply_dual_cutoffs(probs, classes, down_cutoff, up_cutoff):
     """
-    Wendet strikte Cutoffs fuer das Downside-Risiko und die Upside-Huerde an.
-    Prioritaet:
-    1. Wenn prob_down >= down_cutoff -> DOWN (-1)
-    2. Wenn prob_up >= up_cutoff -> UP (1)
-    3. Sonst -> FLAT (0)
+    Applies strict cutoffs for downside risk and the upside hurdle.
+    Priority:
+    1. If prob_down >= down_cutoff -> DOWN (-1)
+    2. If prob_up >= up_cutoff -> UP (1)
+    3. Else -> FLAT (0)
     """
     adjusted_preds = np.zeros(len(probs), dtype=int)
     
@@ -94,26 +94,26 @@ def apply_dual_cutoffs(probs, classes, down_cutoff, up_cutoff):
         p_down = probs[i, down_idx] if down_idx != -1 else 0
         p_up = probs[i, up_idx] if up_idx != -1 else 0
         
-        # 1. Notbremse: Zu hohes Abwaertsrisiko
+        # 1. Emergency brake: Downside risk too high
         if p_down >= down_cutoff:
             adjusted_preds[i] = -1
-        # 2. Hohe Huerde fuer Up: Nur bei extremer Sicherheit
+        # 2. High hurdle for Up: Only with extreme certainty
         elif p_up >= up_cutoff:
             adjusted_preds[i] = 1
-        # 3. Keine Extreme: Der Markt laeuft seitwaerts (Flat)
+        # 3. No extremes: The market runs sideways (Flat)
         else:
             adjusted_preds[i] = 0
             
     return adjusted_preds
 # ----------------------------------
 
-# WICHTIG: Die Signatur hat einen neuen Parameter 'up_cutoff_value' erhalten!
+# IMPORTANT: The signature has received a new parameter 'up_cutoff_value'!
 def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, horizon, final_features=12, pre_filter_k=80, timestamp=None, up_cutoff_value=0.65):
-    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Fuehre Feature Selection durch (Pre-Filter: Top {pre_filter_k} Variablen)...")
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Executing Feature Selection (Pre-Filter: Top {pre_filter_k} variables)...")
     
-    # Klassengewichtung
+    # Class weighting
     custom_weights = calculate_smoothed_weights(y, smoothing='log')
-    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Dynamische Algorithmus-Gewichtung (Log-Smoothed): {custom_weights}")
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Dynamic Algorithm Weighting (Log-Smoothed): {custom_weights}")
     
     k_actual = min(pre_filter_k, X_scaled.shape[1])
     kbest = SelectKBest(score_func=f_classif, k=k_actual)
@@ -140,7 +140,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     
     sfs = SequentialFeatureSelector(log_reg_base, n_features_to_select=final_features, direction='forward', cv=tscv, n_jobs=-1)
     
-    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Starting SequentialFeatureSelector (SFS). Dies kann einige Minuten dauern...")
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Starting SequentialFeatureSelector (SFS). This may take a few minutes...")
     sfs.fit(X_stage_1, y)
     print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: SFS complete.")
     
@@ -154,7 +154,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     model.fit(X_optimal, y)
     print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Final fit complete. Starting OOF Evaluation...")
 
-    # 1. Out-of-Fold (OOF) Evaluierung
+    # 1. Out-of-Fold (OOF) Evaluation
     oof_preds = np.full(len(y), np.nan)
     oof_probs = np.full((len(y), len(model.classes_)), np.nan)
     
@@ -174,7 +174,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     
     print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: OOF Evaluation complete.")
 
-    # 2. KS-Statistik (Cutoff Optimierung fuer Klasse -1)
+    # 2. KS-Statistic (Cutoff optimization for class -1)
     y_down_true = (y_valid == -1).astype(int)
     optimal_down_threshold = 0.33 
     
@@ -186,14 +186,14 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         ks_stats = tpr - fpr
         max_ks_idx = np.argmax(ks_stats)
         optimal_down_threshold = thresholds[max_ks_idx]
-        print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: KS-Statistik optimiert: Down-Cutoff liegt bei {optimal_down_threshold:.2%}")
+        print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: KS-Statistic optimized: Down-Cutoff is at {optimal_down_threshold:.2%}")
 
     # ==========================================
-    # NEU: Strenge Huerde fuer Up anwenden
-    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Strikte Up-Huerde (Cutoff) gesetzt auf {up_cutoff_value:.2%}")
+    # NEW: Apply strict hurdle for Up
+    print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Strict Up-hurdle (Cutoff) set to {up_cutoff_value:.2%}")
     # ==========================================
 
-    # 3. Synchronisation der Matrizen mit dem DUAL-Cutoff
+    # 3. Matrix synchronization with the DUAL-Cutoff
     oof_preds_dual = apply_dual_cutoffs(oof_probs_valid, model.classes_, optimal_down_threshold, up_cutoff_value)
     
     train_probs = model.predict_proba(X_optimal)
@@ -216,8 +216,8 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
                     xticklabels=classes, yticklabels=classes, ax=ax, cbar=False,
                     annot_kws={"size": 11, "weight": "bold"})
         
-        ax.set_ylabel('Tatsaechlicher Markt (True)', fontsize=12, fontweight='bold', labelpad=10)
-        ax.set_xlabel('Modell-Prognose (Predicted)', fontsize=12, fontweight='bold', labelpad=10)
+        ax.set_ylabel('Actual Market (True)', fontsize=12, fontweight='bold', labelpad=10)
+        ax.set_xlabel('Model Forecast (Predicted)', fontsize=12, fontweight='bold', labelpad=10)
         ax.set_title(f"{title}\nAccuracy: {accuracy:.2%}", fontsize=14, fontweight='bold', pad=15)
         
         plt.xticks(fontsize=11)
@@ -231,7 +231,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     fig_cm_train = plot_advanced_cm(y, train_preds_dual, model.classes_, "1. In-Sample (Training)", train_accuracy)
     fig_cm_cv = plot_advanced_cm(y_valid, oof_preds_dual, model.classes_, "2. Out-of-Sample (Cross-Validation)", cv_accuracy)
 
-    # 5. Live Predict Logik (Dual Cutoff angewendet)
+    # 5. Live Predict Logic (Dual Cutoff applied)
     X_latest_optimal = latest_features_scaled[selected_features]
     probabilities = model.predict_proba(X_latest_optimal)[0]
     
@@ -239,7 +239,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     prob_down = prob_dict.get(-1, 0)
     prob_up = prob_dict.get(1, 0)
     
-    # --- Live Predict Dual Cutoff Logik ---
+    # --- Live Predict Dual Cutoff Logic ---
     if prob_down >= optimal_down_threshold:
         prediction = -1
     elif prob_up >= up_cutoff_value:
@@ -257,24 +257,24 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
     prob_flat = prob_dict.get(0, 0)
 
     print("\n" + "="*35)
-    print("=== Aktuelle Modell-Prognose ===")
+    print("=== Current Model Forecast ===")
     print("="*35)
-    print(f"Datum: {predict_date_str}")
-    print(f"Vorhersage: {pred_label}")
-    print(f"Wahrscheinlichkeiten: Down={prob_down:.2%}, Flat={prob_flat:.2%}, Up={prob_up:.2%}\n")
+    print(f"Date: {predict_date_str}")
+    print(f"Forecast: {pred_label}")
+    print(f"Probabilities: Down={prob_down:.2%}, Flat={prob_flat:.2%}, Up={prob_up:.2%}\n")
 
-    # WICHTIG: Berechnung der Feature-Gewichte fuer den Export
+    # IMPORTANT: Calculation of feature weights for export
     importance = np.mean(np.abs(model.coef_), axis=0)
     feature_names = selected_features.tolist()
     feature_weights = {feat: float(weight) for feat, weight in zip(feature_names, importance)}
     
     coeff_df = pd.DataFrame({
-        'Praediktor': selected_features,
-        'Einfluss (Mean Absolut)': importance
-    }).sort_values(by='Einfluss (Mean Absolut)', ascending=False)
+        'Predictor': selected_features,
+        'Influence (Mean Absolute)': importance
+    }).sort_values(by='Influence (Mean Absolute)', ascending=False)
     
     if timestamp:
-        print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Hole oekonomische Interpretation vom LLM...")
+        print(f"    [{datetime.now().strftime('%H:%M:%S')}] MODELING: Fetching economic interpretation from LLM...")
         llm_analysis = get_llm_interpretation(coeff_df.to_string(index=False), target_etf, horizon)
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -285,39 +285,39 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
         md_path = os.path.join(output_dir, f"feature_selection_{timestamp}.md")
         with open(md_path, 'w', encoding='utf-8') as f:
             f.write("# ETF Predictor Pipeline-Report\n\n")
-            f.write(f"- **Generiert am:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"- **Generated at:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"- **Target ETF:** {target_etf}\n")
             f.write(f"- **Forecast Horizon:** {horizon} Trading Days\n\n")
             
-            f.write("## Aktuelle Marktprognose (Predict)\n\n")
-            f.write(f"Basierend auf den Schlusskursen vom **{predict_date_str}** prognostiziert das Modell:\n\n")
-            f.write(f"> **Klasse:** {pred_label}\n>\n")
-            f.write(f"> **Wahrscheinlichkeiten:** Down: {prob_down:.2%} | Flat: {prob_flat:.2%} | Up: {prob_up:.2%}\n\n")
+            f.write("## Current Market Forecast (Predict)\n\n")
+            f.write(f"Based on closing prices from **{predict_date_str}**, the model predicts:\n\n")
+            f.write(f"> **Class:** {pred_label}\n>\n")
+            f.write(f"> **Probabilities:** Down: {prob_down:.2%} | Flat: {prob_flat:.2%} | Up: {prob_up:.2%}\n\n")
             f.write("---\n\n")
             
-            f.write("## Ausgewaehlte Praediktoren (SFS)\n\n")
-            f.write("| Praediktor | Einfluss (Mean Absolut) |\n")
+            f.write("## Selected Predictors (SFS)\n\n")
+            f.write("| Predictor | Influence (Mean Absolute) |\n")
             f.write("| :--- | :--- |\n")
             for _, row in coeff_df.iterrows():
-                f.write(f"| {row['Praediktor']} | {row['Einfluss (Mean Absolut)']:.6f} |\n")
+                f.write(f"| {row['Predictor']} | {row['Influence (Mean Absolute)']:.6f} |\n")
             f.write("\n")
             
-            f.write("## Aussortierte Praediktoren\n\n")
-            f.write("### 1. In der Endauswahl verworfen (SFS Rejects)\n")
+            f.write("## Discarded Predictors\n\n")
+            f.write("### 1. Discarded in final selection (SFS Rejects)\n")
             f.write(f"`{', '.join(rejected_stage_2.tolist())}`\n\n")
             
-            f.write("### 2. Im Basisfilter verworfen (ANOVA Rejects)\n")
-            f.write(f"<details>\n<summary>Klicken, um alle <b>{len(rejected_stage_1)}</b> in Stufe 1 aussortierten Variablen anzuzeigen</summary>\n\n")
+            f.write("### 2. Discarded in base filter (ANOVA Rejects)\n")
+            f.write(f"<details>\n<summary>Click to view all <b>{len(rejected_stage_1)}</b> variables discarded in stage 1</summary>\n\n")
             f.write(f"`{', '.join(rejected_stage_1.tolist())}`\n")
             f.write("\n</details>\n\n")
             f.write("---\n\n")
             
-            f.write("## KI-Interpretation der Praediktoren (Hedgefonds Analyst)\n\n")
+            f.write("## AI Interpretation of Predictors (Hedge Fund Analyst)\n\n")
             f.write(llm_analysis + "\n\n")
             
-            f.write("## Mathematische Modellparameter\n\n")
+            f.write("## Mathematical Model Parameters\n\n")
             f.write(f"- **Intercepts:** `{model.intercept_.tolist()}`\n\n")
-            f.write("- **Koeffizienten-Matrix:**\n")
+            f.write("- **Coefficient Matrix:**\n")
             f.write("  ```text\n")
             f.write(str(model.coef_))
             f.write("\n  ```\n")
@@ -332,7 +332,7 @@ def perform_feature_selection(X_scaled, y, latest_features_scaled, target_etf, h
                 timestamp=timestamp
             )
         except Exception as e:
-            print(f"Fehler bei Audit-Generierung: {e}")
+            print(f"Error during audit generation: {e}")
             
     return {
         "model": model,

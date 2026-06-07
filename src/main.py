@@ -23,7 +23,7 @@ from config import (
 from data_pipeline import load_and_prepare_data, fetch_and_lag_fred_data
 from modeling import perform_feature_selection
 
-# Unterdruecke Warnungen fuer saubere Logs
+# Suppress warnings for clean logs
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 warnings.filterwarnings('ignore', category=UserWarning)
@@ -35,33 +35,33 @@ except ImportError:
     pass
 
 def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_yahoo=None, pre_fetched_fred=None):
-    """Fuehrt die Vorhersage-Pipeline fuer einen einzelnen Ticker aus."""
+    """Executes the prediction pipeline for a single ticker."""
     print(f"\n" + "-"*40, flush=True)
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] SUB-PROCESS: Berechne Modell fuer {ticker}", flush=True)
-    print(f"Modell nutzt statisches Universum: {len(ALL_TICKERS)} Ticker.", flush=True)
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] SUB-PROCESS: Calculating model for {ticker}", flush=True)
+    print(f"Model uses static universe: {len(ALL_TICKERS)} tickers.", flush=True)
     print("-"*40, flush=True)
     
     ticker_universe = sorted(list(set(ALL_TICKERS + [ticker])))
     
     try:
-        # WICHTIG: Im Batch-Modus verhindern wir Data-Leakage und unvollstaendige Feature-Matrizen!
+        # IMPORTANT: In batch mode we prevent data leakage and incomplete feature matrices!
         if pre_fetched_yahoo is not None:
-            # 1. Pruefen, ob der Ziel-ETF existiert
+            # 1. Check if the target ETF exists
             if ticker not in pre_fetched_yahoo.columns:
-                raise ValueError(f"Target ETF {ticker} fehlt im Yahoo Download (Delisted/Fehler).")
+                raise ValueError(f"Target ETF {ticker} is missing in Yahoo Download (Delisted/Error).")
             
-            # 2. Harte Pruefung, ob Yahoo Finance Makro-Daten verschluckt hat!
+            # 2. Hard check if Yahoo Finance swallowed macro data!
             missing_macro = [t for t in ALL_TICKERS if t not in pre_fetched_yahoo.columns]
             if missing_macro:
-                raise ValueError(f"CRITICAL: Yahoo Bulk-Download hat {len(missing_macro)} Makro-Ticker verschluckt (z.B. {missing_macro[0]}). Modell-Matrix waere korrupt!")
+                raise ValueError(f"CRITICAL: Yahoo Bulk-Download swallowed {len(missing_macro)} macro tickers (e.g. {missing_macro[0]}). Model matrix would be corrupt!")
             
-            # Slicing: Nur Makro-Universum + dieser EINE Ziel-ETF
+            # Slicing: Only macro universe + this ONE target ETF
             available_tickers = [t for t in ticker_universe if t in pre_fetched_yahoo.columns]
             sliced_yahoo = pre_fetched_yahoo[available_tickers].copy()
         else:
             sliced_yahoo = None
 
-        # Daten vorbereiten
+        # Prepare data
         X_train_scaled, y_train, X_live_scaled = load_and_prepare_data(
             target_ticker=ticker,
             all_tickers=ticker_universe,
@@ -72,7 +72,7 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
             pre_fetched_fred=pre_fetched_fred
         )
         
-        # Im Batch-Modus unterdruecken wir den Timestamp, um keine hunderten Markdown-Reports zu generieren
+        # In batch mode we suppress the timestamp to avoid generating hundreds of markdown reports
         report_timestamp = None if is_batch else timestamp
         
         results = perform_feature_selection(
@@ -97,18 +97,18 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
             "quality_gate_passed": bool(results["is_valid_quality"]),
             "ks_cutoff": float(results["ks_cutoff"]),
             
-            # Transparente Ausgabe der Modell-Treiber fuer das Batch JSON
+            # Transparent output of the model drivers for the batch JSON
             "selected_features": results.get("selected_features", []),
             "feature_weights": results.get("feature_weights", {})
         }
         
-        # Fuer Streamlit und Einzel-Ausfuehrungen geben wir das komplette Modell & Grafiken zurueck
-        # Fuer Streamlit und Einzel-Ausfuehrungen geben wir das komplette Modell & Grafiken zurueck
+        # For Streamlit and single executions we return the complete model & graphics
+        # For Streamlit and single executions we return the complete model & graphics
         if not is_batch:
             response["raw_results"] = results
             
             # =========================================================================
-            # ARTEFAKT-EXPORT FÜR FEHLERANALYSE & PLAUSIBILITÄT (Nur im Einzelmodus)
+            # ARTIFACT EXPORT FOR ERROR ANALYSIS & PLAUSIBILITY (Single mode only)
             # =========================================================================
             try:
                 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -117,27 +117,27 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
                 
                 safe_ts = timestamp if timestamp else datetime.now().strftime("%Y%m%d_%H%M%S")
                 
-                # 1. Training Matrix (Voller Feature-Space vor der Selektion + Zielvektor)
-                # Auf dieser Basis führt der Algorithmus die initiale Variablenselektion durch.
+                # 1. Training Matrix (Full feature space before selection + target vector)
+                # On this basis, the algorithm performs the initial variable selection.
                 df_train = X_train_scaled.copy()
                 df_train['TARGET_CLASS'] = y_train
                 df_train.to_csv(os.path.join(artifacts_dir, f"{ticker}_1_train_full_{safe_ts}.csv"))
                 
-                # 2. CV Matrix (Nur die final selektierten Features + Zielvektor)
-                # Diese Matrix nutzt die TimeSeriesSplit Kreuzvalidierung und das finale Model-Fitting.
+                # 2. CV Matrix (Only the final selected features + target vector)
+                # This matrix uses TimeSeriesSplit cross-validation and final model fitting.
                 df_cv = results["X_optimal"].copy()
                 df_cv['TARGET_CLASS'] = y_train
                 df_cv.to_csv(os.path.join(artifacts_dir, f"{ticker}_2_cv_optimal_{safe_ts}.csv"))
                 
-                # 3. Predict Matrix (Der isolierte Live-Datenpunkt für die aktuelle Vorhersage)
-                # Reduziert auf exakt die Features, die das fertige Modell erwartet.
+                # 3. Predict Matrix (The isolated live data point for the current prediction)
+                # Reduced to exactly the features that the finished model expects.
                 selected_features = results["selected_features"]
                 df_predict = X_live_scaled[selected_features].copy()
                 df_predict.to_csv(os.path.join(artifacts_dir, f"{ticker}_3_predict_live_{safe_ts}.csv"))
                 
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] ARTIFACTS: 3 Diagnose-Matrizen nach /artifacts exportiert.", flush=True)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ARTIFACTS: 3 diagnostic matrices exported to /artifacts.", flush=True)
             except Exception as e:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR beim Artefakt-Export: {e}", flush=True)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR during artifact export: {e}", flush=True)
             # =========================================================================
 
         return response
@@ -147,11 +147,11 @@ def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_
         return {"ticker": ticker, "status": "Failed", "error": str(e)}
 
 def execute_batch_processing(runner_id, total_runners):
-    """Downloadet Rohdaten fuer den zugeteilten Slice und verarbeitet die ETFs speicherschonend."""
+    """Downloads raw data for the assigned slice and processes the ETFs in a memory-efficient way."""
     
     # === ANTI API-BAN JITTER ===
     sleep_time = random.uniform(1.0, 180.0)
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Runner {runner_id}/{total_runners} wartet {sleep_time:.1f} Sekunden (Anti-429 Jitter)...", flush=True)
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Runner {runner_id}/{total_runners} waiting {sleep_time:.1f} seconds (Anti-429 Jitter)...", flush=True)
     time.sleep(sleep_time)
     # =========================================
 
@@ -159,14 +159,14 @@ def execute_batch_processing(runner_id, total_runners):
     batch_config_path = os.path.join(project_root, 'config', 'batch_targets.json')
     
     if not os.path.exists(batch_config_path):
-        raise FileNotFoundError(f"Batch-Konfiguration fehlt. Bitte vorher scripts/build_etf_batch.py ausfuehren.")
+        raise FileNotFoundError(f"Batch configuration missing. Please run scripts/build_etf_batch.py first.")
         
     with open(batch_config_path, 'r') as f:
         batch_config = json.load(f)
         
     all_tickers = batch_config.get("tickers", [])
     
-    # --- SLICING LOGIK FUER DISTRIBUTED COMPUTE ---
+    # --- SLICING LOGIC FOR DISTRIBUTED COMPUTE ---
     chunk_size = math.ceil(len(all_tickers) / total_runners)
     start_idx = (runner_id - 1) * chunk_size
     end_idx = start_idx + chunk_size
@@ -175,24 +175,24 @@ def execute_batch_processing(runner_id, total_runners):
     print(f"\n" + "="*60, flush=True)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] BATCH GLOBAL INITIALIZATION", flush=True)
     print(f"RUNNER ID: {runner_id}/{total_runners}", flush=True)
-    print(f"Verarbeite Block von Index {start_idx} bis {end_idx-1} ({len(my_tickers)} ETFs)", flush=True)
+    print(f"Processing block from index {start_idx} to {end_idx-1} ({len(my_tickers)} ETFs)", flush=True)
     print("="*60, flush=True)
     
     if not my_tickers:
-        print("Keine ETFs fuer diesen Runner uebrig. Beende Prozess.", flush=True)
+        print("No ETFs left for this runner. Terminating process.", flush=True)
         return
 
-    # Zusammenfuehren des globalen Macro-Universums NUR mit den ETFs dieses spezifischen Runners
+    # Merging the global macro universe ONLY with the ETFs of this specific runner
     global_ticker_universe = list(set(ALL_TICKERS + my_tickers))
     
-    # Die zwei einzigen Netzwerk-Anfragen des gesamten Batch-Laufs fuer diesen Runner
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] MASTER-FETCH: Lade Kurse von Yahoo Finance ({len(global_ticker_universe)} Ticker)...", flush=True)
+    # The only two network requests of the entire batch run for this runner
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] MASTER-FETCH: Loading prices from Yahoo Finance ({len(global_ticker_universe)} tickers)...", flush=True)
     global_raw_yahoo = yf.download(global_ticker_universe, start=START_DATE, end=END_DATE)['Close']
     
-    print(f"  [{datetime.now().strftime('%H:%M:%S')}] MASTER-FETCH: Lade makrooekonomische Reihen von FRED...", flush=True)
+    print(f"  [{datetime.now().strftime('%H:%M:%S')}] MASTER-FETCH: Loading macroeconomic series from FRED...", flush=True)
     global_raw_fred = fetch_and_lag_fred_data(START_DATE, END_DATE)
     
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Master-Download abgeschlossen. Wechsel in lokalen Berechnungsmodus...", flush=True)
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Master download complete. Switching to local computation mode...", flush=True)
     
     batch_results = {
         "execution_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -206,9 +206,9 @@ def execute_batch_processing(runner_id, total_runners):
         "results": []
     }
     
-    # Schleife operiert nun rein lokal im Arbeitsspeicher
+    # Loop now operates purely locally in memory
     for idx, ticker in enumerate(my_tickers, 1):
-        print(f"\nFortschritt Runner {runner_id}: {idx}/{len(my_tickers)}", flush=True)
+        print(f"\nProgress Runner {runner_id}: {idx}/{len(my_tickers)}", flush=True)
         res = run_pipeline_for_ticker(
             ticker=ticker, 
             is_batch=True, 
@@ -217,7 +217,7 @@ def execute_batch_processing(runner_id, total_runners):
         )
         batch_results["results"].append(res)
         
-    # JSON-Ergebnisse spezifisch fuer diesen Runner persistieren
+    # Persist JSON results specifically for this runner
     output_dir = os.path.join(project_root, 'output')
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, f'batch_results_runner_{runner_id}.json')
@@ -227,15 +227,15 @@ def execute_batch_processing(runner_id, total_runners):
         
     print(f"\n" + "="*60, flush=True)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] BATCH COMPLETE (Runner {runner_id}).", flush=True)
-    print(f"Ergebnisse erfolgreich gespeichert unter: {output_file_path}", flush=True)
+    print(f"Results successfully saved at: {output_file_path}", flush=True)
     print("="*60, flush=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ETF Predictor Pipeline Orchestrator")
-    parser.add_argument("--batch", action="store_true", help="Fuehrt die Pipeline im Batch-Modus aus")
-    parser.add_argument("--ticker", type=str, help="Single-Run fuer einen spezifischen Ticker")
-    parser.add_argument("--runner-id", type=int, default=1, help="Die ID des aktuellen Runners (1-basiert)")
-    parser.add_argument("--total-runners", type=int, default=1, help="Die Gesamtzahl der eingesetzten Runner")
+    parser.add_argument("--batch", action="store_true", help="Executes the pipeline in batch mode")
+    parser.add_argument("--ticker", type=str, help="Single run for a specific ticker")
+    parser.add_argument("--runner-id", type=int, default=1, help="The ID of the current runner (1-based)")
+    parser.add_argument("--total-runners", type=int, default=1, help="The total number of deployed runners")
     
     args = parser.parse_args()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
