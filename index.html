@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETF Quant Engine - Batch Analyse</title>
+    <title>ETF Quant Engine - Batch Analysis</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         :root {
@@ -128,26 +128,26 @@
 
 <div class="container">
     <div class="header">
-        <h1>ETF Quant Engine - Batch Analyse</h1>
-        <p id="execution-time" style="color: var(--text-muted);">Lade Daten...</p>
+        <h1>ETF Quant Engine - Batch Analysis</h1>
+        <p id="execution-time" style="color: var(--text-muted);">Loading data...</p>
     </div>
 
     <div id="error-msg" style="display: none;"></div>
 
     <div class="info-box">
-        <h4>Dual-Cutoff Entscheidungslogik</h4>
+        <h4>Dual-Cutoff Decision Logic</h4>
         <ul>
-            <li><strong>1. Down_prob (Prio 1):</strong> Überschreitet die <em>Prob Down</em> den <strong>KS Cutoff</strong>, wird das Signal auf <span style="color: var(--accent-down); font-weight: bold;">DOWN</span> gesetzt.</li>
-            <li><strong>2. Up_prob (Prio 2):</strong> Ist das Risiko gering, muss die <em>Prob Up</em> eine harte Hürde (z. B. <strong>65%</strong>) nehmen, um ein <span style="color: var(--accent-up); font-weight: bold;">UP</span> Signal zu generieren.</li>
-            <li><strong>3. Flat_prob:</strong> Greift keine der beiden Regeln, ist das Modell unentschlossen und deklariert den Markt als <span style="color: var(--accent-flat); font-weight: bold;">FLAT</span>.</li>
+            <li><strong>1. Down_prob (Prio 1):</strong> If the <em>Prob Down</em> exceeds the <strong>KS Cutoff</strong>, the signal is set to <span style="color: var(--accent-down); font-weight: bold;">DOWN</span>.</li>
+            <li><strong>2. Up_prob (Prio 2):</strong> If the risk is low, the <em>Prob Up</em> must clear a hard hurdle (e.g., <strong>65%</strong>) to generate an <span style="color: var(--accent-up); font-weight: bold;">UP</span> signal.</li>
+            <li><strong>3. Flat_prob:</strong> If neither rule applies, the model is undecided and declares the market as <span style="color: var(--accent-flat); font-weight: bold;">FLAT</span>.</li>
         </ul>
     </div>
     
     <div id="top-etfs-container" style="display: none; margin-bottom: 30px;">
         <div class="info-box" style="border-left-color: var(--accent-up); background-color: #eafbee; margin-bottom: 0;">
-            <h4>Empfohlene Top ETFs</h4>
+            <h4>Recommended Top ETFs</h4>
             <p style="margin-top: 0; font-size: 0.9em; color: var(--text-muted);">
-                Diese ETFs werden vom Modell als <strong>UP</strong> klassifiziert, besitzen eine Modellgenauigkeit (CV Accuracy) von über <strong>50%</strong> und eine UP-Wahrscheinlichkeit unter <strong>90%</strong> (um potenziell fehlerhafte oder überangepasste Klassifikationen auszuschließen).
+                These ETFs are classified as <strong>UP</strong> by the model, have a model accuracy (CV Accuracy) of over <strong>50%</strong>, and an UP probability below <strong>90%</strong> (to exclude potentially faulty or overfitted classifications).
             </p>
             <div id="top-etfs-list" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
                 <!-- Dynamically populated -->
@@ -157,19 +157,19 @@
 
     <div class="metrics-grid">
         <div class="metric-card">
-            <h3 style="margin:0; color: var(--text-muted);">Valide ETFs</h3>
+            <h3 style="margin:0; color: var(--text-muted);">Valid ETFs</h3>
             <div class="metric-value" id="kpi-total">-</div>
         </div>
         <div class="metric-card" style="border-bottom: 4px solid var(--accent-up);">
-            <h3 style="margin:0; color: var(--text-muted);">Prognose: Up</h3>
+            <h3 style="margin:0; color: var(--text-muted);">Forecast: Up</h3>
             <div class="metric-value" id="kpi-up" style="color: var(--accent-up);">-</div>
         </div>
         <div class="metric-card" style="border-bottom: 4px solid var(--accent-down);">
-            <h3 style="margin:0; color: var(--text-muted);">Prognose: Down</h3>
+            <h3 style="margin:0; color: var(--text-muted);">Forecast: Down</h3>
             <div class="metric-value" id="kpi-down" style="color: var(--accent-down);">-</div>
         </div>
         <div class="metric-card" style="border-bottom: 4px solid var(--accent-flat);">
-            <h3 style="margin:0; color: var(--text-muted);">Prognose: Flat</h3>
+            <h3 style="margin:0; color: var(--text-muted);">Forecast: Flat</h3>
             <div class="metric-value" id="kpi-flat" style="color: var(--accent-flat);">-</div>
         </div>
     </div>
@@ -179,9 +179,9 @@
     </div>
 
     <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <h3 style="margin: 0;">Alle Ergebnisse</h3>
+        <h3 style="margin: 0;">All Results</h3>
         <div>
-            <input type="text" id="filter-input" placeholder="Ticker oder Prognose suchen..." style="padding: 8px; border: 1px solid var(--border); border-radius: 4px; width: 250px; font-family: inherit;" onkeyup="applyFilterAndSort()">
+            <input type="text" id="filter-input" placeholder="Search ticker or forecast..." style="padding: 8px; border: 1px solid var(--border); border-radius: 4px; width: 250px; font-family: inherit;" onkeyup="applyFilterAndSort()">
         </div>
     </div>
     <div style="overflow-x: auto;">
@@ -189,7 +189,7 @@
             <thead>
                 <tr>
                     <th onclick="handleSort('ticker')">Ticker <span id="sort-icon-ticker">↕</span></th>
-                    <th onclick="handleSort('prediction_label')">Prognose <span id="sort-icon-prediction_label">↕</span></th>
+                    <th onclick="handleSort('prediction_label')">Forecast <span id="sort-icon-prediction_label">↕</span></th>
                     <th onclick="handleSort('prob_up')">Prob Up <span id="sort-icon-prob_up">↕</span></th>
                     <th onclick="handleSort('prob_flat')">Prob Flat <span id="sort-icon-prob_flat">↕</span></th>
                     <th onclick="handleSort('prob_down')">Prob Down <span id="sort-icon-prob_down">↕</span></th>
@@ -204,7 +204,7 @@
 </div>
 
 <script>
-    // Pfad zur JSON Datei (Da index.html im Root liegt, ist artifacts/... korrekt)
+    // Path to JSON file (Since index.html is in the root, artifacts/... is correct)
     const JSON_URL = 'artifacts/latest_batch_results.json';
 
     let globalValidData = [];
@@ -216,35 +216,35 @@
             const response = await fetch(JSON_URL);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            // 1. Lade die Antwort als reinen Rohtext (noch kein JSON!)
+            // 1. Load the response as raw text (not yet JSON!)
             const rawText = await response.text();
             
-            // 2. Der "Infinity-Fix": Mache aus rohen Werten legale Strings
+            // 2. The "Infinity-Fix": Turn raw values into legal strings
             const cleanText = rawText
                 .replace(/:\s*Infinity/g, ': "Infinity"')
                 .replace(/:\s*-Infinity/g, ': "-Infinity"')
                 .replace(/:\s*NaN/g, ': "NaN"');
             
-            // 3. Jetzt gefahrlos in ein JavaScript-Objekt umwandeln
+            // 3. Now safely convert into a JavaScript object
             const data = JSON.parse(cleanText);
             
-            // Ladezeitpunkt anzeigen
+            // Show load time
             if (data.execution_time) {
-                document.getElementById('execution-time').innerText = `Letzter Batch-Run: ${data.execution_time}`;
+                document.getElementById('execution-time').innerText = `Last Batch-Run: ${data.execution_time}`;
             } else {
-                document.getElementById('execution-time').innerText = `Erfolgreich geladen`;
+                document.getElementById('execution-time').innerText = `Successfully loaded`;
             }
             
             processAndRender(data.results);
         } catch (error) {
-            console.error("Fehler beim Laden oder Parsen der JSON:", error);
+            console.error("Error loading or parsing JSON:", error);
             document.getElementById('error-msg').style.display = 'block';
-            document.getElementById('error-msg').innerText = `Fehler beim Laden oder Parsen der Daten. Siehe Console (F12) für Details.`;
+            document.getElementById('error-msg').innerText = `Error loading or parsing data. See Console (F12) for details.`;
         }
     }
 
     function processAndRender(results) {
-        // 1. FILTER-LOGIK: Entferne invaliden Schrott
+        // 1. FILTER LOGIC: Remove invalid data
         globalValidData = results.filter(item => {
             const isQualityPassed = item.quality_gate_passed === true;
             const isKsValid = item.ks_cutoff !== "Infinity" && item.ks_cutoff !== null && !isNaN(item.ks_cutoff);
@@ -253,7 +253,7 @@
 
         const validData = globalValidData;
 
-        // 2. Metriken berechnen
+        // 2. Calculate metrics
         let countUp = 0, countDown = 0, countFlat = 0;
         validData.forEach(item => {
             if (item.prediction_label === "Up") countUp++;
@@ -266,13 +266,13 @@
         document.getElementById('kpi-down').innerText = countDown;
         document.getElementById('kpi-flat').innerText = countFlat;
 
-        // 3. Scatter Plot generieren
+        // 3. Generate scatter plot
         renderPlot(validData);
 
-        // 4. Top ETFs generieren
+        // 4. Generate top ETFs
         renderTopEtfs(validData);
 
-        // 5. Tabelle füllen (mit Filter & Sort)
+        // 5. Fill table (with filter & sort)
         applyFilterAndSort();
     }
 
@@ -295,16 +295,16 @@
         });
 
         const layout = {
-            title: 'Modellgüte vs. Signalstärke',
-            xaxis: { title: 'CV Accuracy (Kreuzvalidierung)', tickformat: ',.0%' },
-            yaxis: { title: 'Maximale Wahrscheinlichkeit (Signal)', tickformat: ',.0%' },
+            title: 'Model Quality vs. Signal Strength',
+            xaxis: { title: 'CV Accuracy (Cross-validation)', tickformat: ',.0%' },
+            yaxis: { title: 'Maximum Probability (Signal)', tickformat: ',.0%' },
             hovermode: 'closest',
             paper_bgcolor: 'rgba(0,0,0,0)',
-            plot_bgcolor: 'rgba(0,0,0,0)', // Fix für Hintergrund
-            margin: { l: 60, r: 20, t: 40, b: 50 } // Verhindert, dass Labels abgeschnitten werden
+            plot_bgcolor: 'rgba(0,0,0,0)', // Fix for background
+            margin: { l: 60, r: 20, t: 40, b: 50 } // Prevents labels from being cut off
         };
 
-        // Das responsive true sorgt dafür, dass er sich der Breite anpasst, aber die 500px Höhe respektiert
+        // responsive true ensures it adapts to the width, but respects the 500px height
         Plotly.newPlot('scatter-plot', [traceUp, traceDown, traceFlat], layout, {responsive: true});
     }
 
@@ -315,7 +315,7 @@
             item.prob_up < 0.90
         );
 
-        // Sortiere nach Prob Up (absteigend)
+        // Sort by Prob Up (descending)
         topEtfs.sort((a, b) => b.prob_up - a.prob_up);
 
         const container = document.getElementById('top-etfs-container');
@@ -344,9 +344,9 @@
             currentSortAsc = !currentSortAsc;
         } else {
             currentSortCol = col;
-            currentSortAsc = false; // Default absteigend
+            currentSortAsc = false; // Default descending
             if (col === 'ticker' || col === 'prediction_label') {
-                currentSortAsc = true; // Strings default aufsteigend
+                currentSortAsc = true; // Strings default ascending
             }
         }
         applyFilterAndSort();
@@ -374,7 +374,7 @@
             return 0;
         });
 
-        // Icons aktualisieren
+        // Update icons
         const columns = ['ticker', 'prediction_label', 'prob_up', 'prob_flat', 'prob_down', 'cv_accuracy', 'ks_cutoff'];
         columns.forEach(col => {
             const iconSpan = document.getElementById(`sort-icon-${col}`);

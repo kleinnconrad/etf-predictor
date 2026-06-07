@@ -44,11 +44,11 @@ BEGIN
             -- NEW: FRED UNCERTAINTY INDICATORS
             usepuindxd_val, gepucurrent_val,
             
-            -- NEW: FRÜHINDIKATOREN & LIQUIDITÄT (FRED)
+            -- NEW: LEADING INDICATORS & LIQUIDITY (FRED)
             m2sl_val, nfci_val, bamlh0a0hym2_val,
             permit_val, icsa_val, umcsent_val, dgorder_val,
             
-            -- NEW: MARKT-ZYKLIK & ROHSTOFFE (Yahoo Finance)
+            -- NEW: MARKET CYCLICALITY & COMMODITIES (Yahoo Finance)
             iwm_price, iyt_price, rsp_price, smh_price,
             lbs_price, eurusd_price, jpy_price
             
@@ -206,7 +206,7 @@ BEGIN
                 usepuindxd_1M_ret, usepuindxd_3M_ret, usepuindxd_6M_ret,
                 gepucurrent_1M_ret, gepucurrent_3M_ret, gepucurrent_6M_ret,
                 
-                -- NEW: FRÜHINDIKATOREN & LIQUIDITÄT (FRED)
+                -- NEW: LEADING INDICATORS & LIQUIDITY (FRED)
                 m2sl_1M_ret, m2sl_3M_ret, m2sl_6M_ret,
                 nfci_1M_ret, nfci_3M_ret, nfci_6M_ret,
                 bamlh0a0hym2_1M_ret, bamlh0a0hym2_3M_ret, bamlh0a0hym2_6M_ret,
@@ -215,7 +215,7 @@ BEGIN
                 umcsent_1M_ret, umcsent_3M_ret, umcsent_6M_ret,
                 dgorder_1M_ret, dgorder_3M_ret, dgorder_6M_ret,
                 
-                -- NEW: MARKT-ZYKLIK & ROHSTOFFE (Yahoo Finance)
+                -- NEW: MARKET CYCLICALITY & COMMODITIES (Yahoo Finance)
                 iwm_1M_ret, iwm_3M_ret, iwm_6M_ret,
                 iyt_1M_ret, iyt_3M_ret, iyt_6M_ret,
                 rsp_1M_ret, rsp_3M_ret, rsp_6M_ret,
@@ -333,7 +333,7 @@ BEGIN
                 (v_today.usepuindxd_val / v_past_1m.usepuindxd_val) - 1, (v_today.usepuindxd_val / v_past_3m.usepuindxd_val) - 1, (v_today.usepuindxd_val / v_past_6m.usepuindxd_val) - 1,
                 (v_today.gepucurrent_val / v_past_1m.gepucurrent_val) - 1, (v_today.gepucurrent_val / v_past_3m.gepucurrent_val) - 1, (v_today.gepucurrent_val / v_past_6m.gepucurrent_val) - 1,
                 
-                -- NEW: FRÜHINDIKATOREN & LIQUIDITÄT (FRED)
+                -- NEW: LEADING INDICATORS & LIQUIDITY (FRED)
                 (v_today.m2sl_val / v_past_1m.m2sl_val) - 1, (v_today.m2sl_val / v_past_3m.m2sl_val) - 1, (v_today.m2sl_val / v_past_6m.m2sl_val) - 1,
                 (v_today.nfci_val / v_past_1m.nfci_val) - 1, (v_today.nfci_val / v_past_3m.nfci_val) - 1, (v_today.nfci_val / v_past_6m.nfci_val) - 1,
                 (v_today.bamlh0a0hym2_val / v_past_1m.bamlh0a0hym2_val) - 1, (v_today.bamlh0a0hym2_val / v_past_3m.bamlh0a0hym2_val) - 1, (v_today.bamlh0a0hym2_val / v_past_6m.bamlh0a0hym2_val) - 1,
@@ -342,7 +342,7 @@ BEGIN
                 (v_today.umcsent_val / v_past_1m.umcsent_val) - 1, (v_today.umcsent_val / v_past_3m.umcsent_val) - 1, (v_today.umcsent_val / v_past_6m.umcsent_val) - 1,
                 (v_today.dgorder_val / v_past_1m.dgorder_val) - 1, (v_today.dgorder_val / v_past_3m.dgorder_val) - 1, (v_today.dgorder_val / v_past_6m.dgorder_val) - 1,
 
-                -- NEW: MARKT-ZYKLIK & ROHSTOFFE (Yahoo Finance)
+                -- NEW: MARKET CYCLICALITY & COMMODITIES (Yahoo Finance)
                 (v_today.iwm_price / v_past_1m.iwm_price) - 1, (v_today.iwm_price / v_past_3m.iwm_price) - 1, (v_today.iwm_price / v_past_6m.iwm_price) - 1,
                 (v_today.iyt_price / v_past_1m.iyt_price) - 1, (v_today.iyt_price / v_past_3m.iyt_price) - 1, (v_today.iyt_price / v_past_6m.iyt_price) - 1,
                 (v_today.rsp_price / v_past_1m.rsp_price) - 1, (v_today.rsp_price / v_past_3m.rsp_price) - 1, (v_today.rsp_price / v_past_6m.rsp_price) - 1,

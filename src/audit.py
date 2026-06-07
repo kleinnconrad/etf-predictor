@@ -10,35 +10,35 @@ from config import GEMINI_API_KEY
 
 def fetch_ticker_metadata(base_tickers, max_retries=3, delay=60):
     """
-    Nutzt die Gemini API, um Klarnamen und ökonomische Beschreibungen 
-    für eine Liste von Basis-Tickern als JSON zu generieren.
+    Uses the Gemini API to generate plain names and economic descriptions 
+    for a list of base tickers as JSON.
     """
     if not GEMINI_API_KEY or GEMINI_API_KEY == "DEIN_API_KEY_HIER":
-        print("Kein API-Key für das Audit-Skript gefunden.")
+        print("No API key found for the audit script.")
         return {}
 
     client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # Die Liste als String für den Prompt formatieren
+    # Format the list as a string for the prompt
     tickers_str = ", ".join(base_tickers)
     
     prompt = f"""
-    Du bist ein Finanzdaten-Analyst. Ich gebe dir eine Liste von Börsentickern. 
-    Liefere mir für jeden Ticker exakt ein JSON-Objekt zurück.
+    You are a financial data analyst. I am giving you a list of stock tickers. 
+    Return exactly one JSON object for each ticker.
     
-    Ticker-Liste: [{tickers_str}]
+    Ticker list: [{tickers_str}]
     
-    Regeln für das JSON:
-    Der Key muss der exakte Ticker sein. 
-    Der Value ist ein Objekt mit 'name' (Klarname des Assets/Indikators) und 'desc' (1 prägnanter Satz, was es ökonomisch im Kontext einer Marktprognose misst).
+    Rules for the JSON:
+    The key must be the exact ticker. 
+    The value is an object with 'name' (plain name of the asset/indicator) and 'desc' (1 concise sentence explaining what it economically measures in the context of a market forecast).
     
-    Beispielstruktur:
+    Example structure:
     {{
-        "^TNX": {{"name": "US 10-Year Treasury Yield", "desc": "Misst die Rendite 10-jähriger US-Staatsanleihen; ein zentraler Indikator für langfristige Zins- und Inflationserwartungen."}},
-        "AAPL": {{"name": "Apple Inc.", "desc": "Größtes Technologieunternehmen der Welt; repräsentiert die Stärke des breiten US-Konsum- und Techsektors."}}
+        "^TNX": {{"name": "US 10-Year Treasury Yield", "desc": "Measures the yield of 10-year US Treasury bonds; a key indicator for long-term interest rate and inflation expectations."}},
+        "AAPL": {{"name": "Apple Inc.", "desc": "Largest technology company in the world; represents the strength of the broad US consumer and tech sector."}}
     }}
     
-    WICHTIG: Antworte AUSSCHLIESSLICH mit dem reinen JSON-Code. Keine Markdown-Blöcke (wie ```json), keine Einleitungen, kein Fließtext.
+    IMPORTANT: Respond EXCLUSIVELY with pure JSON code. No Markdown blocks (like ```json), no introductions, no continuous text.
     """
     
     for attempt in range(max_retries):
@@ -48,7 +48,7 @@ def fetch_ticker_metadata(base_tickers, max_retries=3, delay=60):
                 contents=prompt,
             )
             
-            # Bereinigung des Outputs (falls die KI doch Markdown-Ticks mitsendet)
+            # Clean up the output (in case the AI still sends Markdown ticks)
             raw_text = response.text.strip()
             if raw_text.startswith("```json"):
                 raw_text = raw_text[7:]
@@ -61,7 +61,7 @@ def fetch_ticker_metadata(base_tickers, max_retries=3, delay=60):
             return metadata
             
         except json.JSONDecodeError as e:
-            print(f"JSON Parsing Fehler beim Audit (Versuch {attempt+1}): {e}")
+            print(f"JSON parsing error during audit (attempt {attempt+1}): {e}")
             if attempt < max_retries - 1:
                 time.sleep(5)
                 continue
@@ -69,71 +69,71 @@ def fetch_ticker_metadata(base_tickers, max_retries=3, delay=60):
             error_msg = str(e)
             if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
                 if attempt < max_retries - 1:
-                    print(f"API Rate Limit beim Audit. Warte {delay}s...")
+                    print(f"API rate limit during audit. Waiting {delay}s...")
                     time.sleep(delay)
                     continue
-            print(f"API Fehler beim Audit: {e}")
+            print(f"API error during audit: {e}")
             return {}
             
     return {}
 
 def generate_variable_audit_table(X_columns, p_values, selected_features, rejected_stage_2, model_coefs, timestamp):
     """
-    Kompiliert alle statistischen Metriken und LLM-Beschreibungen zu einer Markdown-Tabelle.
+    Compiles all statistical metrics and LLM descriptions into a Markdown table.
     """
-    print("Starte tiefgreifendes Variablen-Audit (LLM-Abfrage läuft)...")
+    print("Starting in-depth variable audit (LLM query running)...")
     
-    # 1. Datenstruktur aufbauen
+    # 1. Build data structure
     audit_data = []
     
-    # Mean Absolute der Koeffizienten für die finalen Features (Einfluss)
+    # Mean Absolute of the coefficients for the final features (impact)
     importance = np.mean(np.abs(model_coefs), axis=0)
     coef_dict = dict(zip(selected_features, importance))
     
     for i, col in enumerate(X_columns):
-        # Basis-Ticker extrahieren (z.B. aus 'AAPL_6M' wird 'AAPL')
+        # Extract base ticker (e.g., 'AAPL_6M' becomes 'AAPL')
         base_ticker = col.rsplit('_', 1)[0]
         p_val = p_values[i]
         
-        # Status und Einfluss zuweisen
+        # Assign status and impact
         if col in selected_features:
-            status = "🟢 Aktiv (Gewählt)"
+            status = "🟢 Active (Selected)"
             einfluss = f"{coef_dict[col]:.4f}"
         elif col in rejected_stage_2:
-            status = "🟡 Verworfen (Multikollinearität)"
+            status = "🟡 Rejected (Multicollinearity)"
             einfluss = "-"
         else:
-            status = "🔴 Verworfen (Keine Signifikanz)"
+            status = "🔴 Rejected (No Significance)"
             einfluss = "-"
             
         audit_data.append({
             "Variable": col,
             "Base_Ticker": base_ticker,
             "Status": status,
-            "p_Wert": p_val,
-            "Einfluss": einfluss
+            "p_Value": p_val,
+            "Impact": einfluss
         })
         
     df_audit = pd.DataFrame(audit_data)
     
-    # 2. Metadaten über Gemini API abrufen (Nur einzigartige Ticker anfragen)
+    # 2. Fetch metadata via Gemini API (request unique tickers only)
     unique_tickers = df_audit['Base_Ticker'].unique().tolist()
     metadata = fetch_ticker_metadata(unique_tickers)
     
-    # 3. LLM-Daten mit der Statistik matchen
-    df_audit['Klarname'] = df_audit['Base_Ticker'].apply(lambda x: metadata.get(x, {}).get('name', 'Unbekannt'))
-    df_audit['Beschreibung'] = df_audit['Base_Ticker'].apply(lambda x: metadata.get(x, {}).get('desc', 'Keine Beschreibung verfügbar.'))
+    # 3. Match LLM data with statistics
+    df_audit['Plain Name'] = df_audit['Base_Ticker'].apply(lambda x: metadata.get(x, {}).get('name', 'Unknown'))
+    df_audit['Description'] = df_audit['Base_Ticker'].apply(lambda x: metadata.get(x, {}).get('desc', 'No description available.'))
     
-    # 4. Tabelle sortieren (Aktive Features zuerst, dann nach p-Wert)
-    # Eigene Sortierlogik über eine Hilfsspalte
-    status_order = {"🟢 Aktiv (Gewählt)": 0, "🟡 Verworfen (Multikollinearität)": 1, "🔴 Verworfen (Keine Signifikanz)": 2}
+    # 4. Sort table (Active features first, then by p-value)
+    # Custom sorting logic via an auxiliary column
+    status_order = {"🟢 Active (Selected)": 0, "🟡 Rejected (Multicollinearity)": 1, "🔴 Rejected (No Significance)": 2}
     df_audit['Sort'] = df_audit['Status'].map(status_order)
-    df_audit = df_audit.sort_values(by=['Sort', 'p_Wert']).drop(columns=['Sort', 'Base_Ticker'])
+    df_audit = df_audit.sort_values(by=['Sort', 'p_Value']).drop(columns=['Sort', 'Base_Ticker'])
     
-    # p-Werte schön formatieren (Wissenschaftliche Notation für sehr kleine Zahlen)
-    df_audit['p_Wert'] = df_audit['p_Wert'].apply(lambda x: f"{x:.2e}" if x < 0.001 else f"{x:.4f}")
+    # Format p-values nicely (Scientific notation for very small numbers)
+    df_audit['p_Value'] = df_audit['p_Value'].apply(lambda x: f"{x:.2e}" if x < 0.001 else f"{x:.4f}")
     
-    # 5. Markdown-Tabelle exportieren
+    # 5. Export Markdown table
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(current_dir, '..'))
     output_dir = os.path.join(project_root, 'output')
@@ -142,16 +142,16 @@ def generate_variable_audit_table(X_columns, p_values, selected_features, reject
     md_path = os.path.join(output_dir, f"variable_audit_{timestamp}.md")
     
     with open(md_path, 'w', encoding='utf-8') as f:
-        f.write("# Variablen-Audit (Feature Encyclopedia)\n\n")
-        f.write(f"**Generiert am:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-        f.write("> Dieses Dokument protokolliert alle Variablen der Pipeline. Es erklärt transparent, "
-                "welche Variablen aktiv Vorhersagen treffen, welche aufgrund redundanter Informationen (Multikollinearität) "
-                "vom Algorithmus ignoriert wurden, und welche Variablen keine statistische Relevanz (ANOVA F-Test) aufwiesen.\n\n")
+        f.write("# Variable Audit (Feature Encyclopedia)\n\n")
+        f.write(f"**Generated on:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        f.write("> This document logs all variables of the pipeline. It transparently explains "
+                "which variables actively make predictions, which were ignored by the algorithm due to redundant information (multicollinearity), "
+                "and which variables showed no statistical relevance (ANOVA F-test).\n\n")
         
-        f.write("| Variable | Klarname | Status | p-Wert (ANOVA) | Einfluss (Modell) | Ökonomische Beschreibung |\n")
+        f.write("| Variable | Plain Name | Status | p-Value (ANOVA) | Impact (Model) | Economic Description |\n")
         f.write("| :--- | :--- | :--- | :--- | :--- | :--- |\n")
         
         for _, row in df_audit.iterrows():
-            f.write(f"| **{row['Variable']}** | {row['Klarname']} | {row['Status']} | {row['p_Wert']} | {row['Einfluss']} | {row['Beschreibung']} |\n")
+            f.write(f"| **{row['Variable']}** | {row['Plain Name']} | {row['Status']} | {row['p_Value']} | {row['Impact']} | {row['Description']} |\n")
             
-    print(f"Variablen-Audit erfolgreich gespeichert unter: {md_path}")
+    print(f"Variable audit successfully saved at: {md_path}")

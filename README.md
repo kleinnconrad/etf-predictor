@@ -273,4 +273,4 @@ The model is deployed as a web service using Streamlit, Docker, and Railway.app.
 
 [FRED-API](https://fred.stlouisfed.org/docs/api/fred/)
 
-Copyright (c) 2026 Conrad Kleinn. Alle Rechte vorbehalten. / All rights reserved.
+Copyright (c) 2026 Conrad Kleinn. All rights reserved.

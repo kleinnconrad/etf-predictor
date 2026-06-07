@@ -5,53 +5,53 @@ import os
 
 def main():
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # Der Pfad zu deiner offiziellen Xetra-Datei
+    # The path to your official Xetra file
     csv_path = os.path.join(project_root, 'config', 't7-xetr-allTradableInstruments.csv')
     output_path = os.path.join(project_root, 'config', 'all_etfs_seed.txt')
 
     if not os.path.exists(csv_path):
-        print(f"Fehler: Bitte speichere den Xetra-Dump unter:\n{csv_path}")
+        print(f"Error: Please save the Xetra-Dump at:\n{csv_path}")
         return
 
-    print("Lese offizielle Xetra-Instrumente (T7) ein...")
+    print("Reading official Xetra instruments (T7)...")
     
-    # skiprows=2 ignoriert die ersten beiden Metadaten-Zeilen der Deutschen Börse
-    # sep=';' da die Börse Semikolons verwendet
+    # skiprows=2 ignores the first two metadata rows of the Deutsche Börse
+    # sep=';' because the exchange uses semicolons
     try:
         df = pd.read_csv(csv_path, sep=';', skiprows=2, low_memory=False)
     except Exception as e:
-        print(f"Fehler beim Lesen der CSV: {e}")
+        print(f"Error reading CSV: {e}")
         return
 
-    # 1. Nur ETFs und ETCs (Exchange Traded Commodities wie Xetra-Gold) filtern
+    # 1. Filter only ETFs and ETCs (Exchange Traded Commodities like Xetra-Gold)
     if 'Instrument Type' not in df.columns or 'Mnemonic' not in df.columns:
-        print("Fehler: Die erwarteten Spalten 'Instrument Type' oder 'Mnemonic' fehlen.")
+        print("Error: The expected columns 'Instrument Type' or 'Mnemonic' are missing.")
         return
 
     etf_df = df[df['Instrument Type'].isin(['ETF', 'ETC'])].copy()
     
-    # 2. Währung filtern (Optional, aber empfohlen für den deutschen Privatanleger)
-    # Wir behalten nur die Instrumente, die auch in Euro (EUR) notieren
+    # 2. Filter currency
+    # We only keep instruments traded in Euro (EUR)
     if 'Currency' in etf_df.columns:
         etf_df = etf_df[etf_df['Currency'] == 'EUR']
     
-    # 3. Ticker für Yahoo Finance bauen (.DE für Xetra anhängen)
-    # Aus 'SXR8' wird 'SXR8.DE'
+    # 3. Build tickers for Yahoo Finance (append .DE for Xetra)
+    # 'SXR8' becomes 'SXR8.DE'
     yahoo_tickers = etf_df['Mnemonic'].astype(str).str.strip().str.upper() + ".DE"
     
-    # 4. Duplikate entfernen (zur Sicherheit)
+    # 4. Remove duplicates (for safety)
     unique_tickers = sorted(list(set(yahoo_tickers.tolist())))
 
-    # In die Textdatei für deine Pipeline schreiben
+    # Write to the text file for your pipeline
     with open(output_path, 'w') as f:
         for ticker in unique_tickers:
             f.write(f"{ticker}\n")
 
     print("\n" + "="*50)
-    print(f"Erfolg! {len(unique_tickers)} handelbare Xetra-ETFs/ETCs extrahiert.")
-    print(f"Seed-Universum gespeichert unter: {output_path}")
+    print(f"Successfully saved {len(unique_tickers)} EUR ETFs to {output_path}.")
+    print(f"Seed universe saved at: {output_path}")
     print("="*50)
-    print("Du kannst nun 'python scripts/build_etf_batch.py' ausführen, um die Liste nach Alter/Liquidität zu filtern.")
+    print("You can now run 'python scripts/build_etf_batch.py' to filter the list by age/liquidity.")
 
 if __name__ == "__main__":
     main()
