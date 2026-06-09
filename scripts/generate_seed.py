@@ -37,10 +37,14 @@ def main():
     
     # 3. Build tickers for Yahoo Finance (append .DE for Xetra)
     # 'SXR8' becomes 'SXR8.DE'
-    yahoo_tickers = etf_df['Mnemonic'].astype(str).str.strip().str.upper() + ".DE"
+    valid_mnemonics = etf_df['Mnemonic'].dropna().astype(str).str.strip().str.upper()
+    valid_mnemonics = valid_mnemonics[valid_mnemonics != 'NAN']
+    valid_mnemonics = valid_mnemonics[valid_mnemonics != '']
+    yahoo_tickers = valid_mnemonics + ".DE"
     
     # 4. Remove duplicates (for safety)
-    unique_tickers = sorted(list(set(yahoo_tickers.tolist())))
+    tickers_list = [str(t) for t in yahoo_tickers.tolist()]
+    unique_tickers = sorted(list(set(tickers_list)))
 
     # Write to the text file for your pipeline
     with open(output_path, 'w') as f:
