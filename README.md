@@ -16,6 +16,7 @@ I specifically chose to forecast macro ETFs rather than individual equities, fut
 
 ## Table of Contents
 
+- [Folder Structure](#folder-structure)
 - [Model Architecture](#model-architecture)
   - [1. Feature Engineering, Interaction Effects & Variable Transformation](#1-feature-engineering-interaction-effects--variable-transformation)
   - [2. Dynamic Target Classification](#2-dynamic-target-classification)
@@ -33,6 +34,20 @@ I specifically chose to forecast macro ETFs rather than individual equities, fut
 - [Automated Batch Processing](#automated-batch-processing)
 - [Execution (Local & Development)](#execution-local--development)
 - [Cloud Deployment (Docker & Railway)](#cloud-deployment-docker--railway)
+
+---
+
+## Folder Structure
+
+- **`.github/`**: GitHub Actions workflows for automated batch processing and CI/CD pipelines.
+- **`artifacts/`**: Persisted output data from batch executions.
+- **`config/`**: Target lists, seed files, and raw data dumps.
+- **`devcontainer/`**: Configuration for reproducible development environments.
+- **`docs/`**: Supplementary project documentation.
+- **`output/`**: Execution outputs, including statistical reports and visualizations.
+- **`scripts/`**: Auxiliary data acquisition and target list curation scripts.
+- **`src/`**: Core modeling, evaluation, and pipeline logic.
+- **`utilities/`**: Auxiliary tools and return on investment calculators.
 
 ---
 
