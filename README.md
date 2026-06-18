@@ -172,37 +172,24 @@ To address the inherent asymmetry in financial machine learning and properly cla
 > **Priority Rule:** The downside risk (Crash Sensor) is **always** checked first to protect capital.
 
 ```mermaid
-flowchart TD
+flowchart LR
     Start(["<b>START</b><br/>Machine learning model provides probabilities<br/>for the three classes (-1, 0, 1)"])
     
     Node1{"<b>Step 1: Check Downside Risk</b><br/>Is prob_down >= optimal_down_threshold?<br/>(KS cutoff)"}
     
-    SignalDown[/"🛑 <b>SIGNAL: DOWN (-1)</b><br/>The process ends here. The risk is too high."/]
+    SignalDown[/"<b>SIGNAL: DOWN (-1)</b><br/>The process ends here. The risk is too high."/]
     
     Node2{"<b>Step 2: Check Upside Potential</b><br/>Is prob_up >= up_cutoff_value=0.65?"}
     
-    SignalUp[/"🚀 <b>SIGNAL: UP (1)</b><br/>The process ends here. High conviction for a rally."/]
+    SignalUp[/"<b>SIGNAL: UP (1)</b><br/>The process ends here. High conviction for a rally."/]
     
-    SignalFlat[/"⚖️ <b>SIGNAL: FLAT (0)</b><br/>The market is trending sideways<br/>or the signals are unclear."/]
+    SignalFlat[/"<b>SIGNAL: FLAT (0)</b><br/>The market is trending sideways<br/>or the signals are unclear."/]
 
     Start --> Node1
     Node1 -->|"YES"| SignalDown
     Node1 -->|"NO (Downside risk is low)"| Node2
     Node2 -->|"YES"| SignalUp
     Node2 -->|"NO (No extreme signal detected)"| SignalFlat
-
-    %% Styling optimized for readability in both Light and Dark Mode
-    classDef startNode fill:#f8f9fa,stroke:#adb5bd,stroke-width:2px,color:#212529;
-    classDef decision fill:#e3f2fd,stroke:#64b5f6,stroke-width:2px,color:#1565c0;
-    classDef down fill:#ffebee,stroke:#ef5350,stroke-width:2px,color:#c62828;
-    classDef up fill:#e8f5e9,stroke:#66bb6a,stroke-width:2px,color:#2e7d32;
-    classDef flat fill:#fff8e1,stroke:#ffca28,stroke-width:2px,color:#f57f17;
-
-    class Start startNode;
-    class Node1,Node2 decision;
-    class SignalDown down;
-    class SignalUp up;
-    class SignalFlat flat;
 ```
 
 ## Automated Economic Interpretation (LLM)
