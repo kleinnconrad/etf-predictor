@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETF Quant Engine - Batch Analysis</title>
+    <title>ETF Batch Analysis</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         :root {
             --bg-color: #000000;
             --text-main: #ffffff;
         }
+
         * {
             box-sizing: border-box;
         }
+
         body {
             font-family: monospace, "Courier New", Courier;
             background-color: var(--bg-color);
@@ -22,87 +25,109 @@
             font-size: 14px;
             line-height: 1.4;
         }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
         }
+
         .header {
             text-align: center;
             margin-bottom: 20px;
         }
-        h1, h3, h4 {
+
+        h1,
+        h3,
+        h4 {
             font-weight: normal;
             margin-bottom: 10px;
             margin-top: 0;
         }
+
         p {
             margin: 5px 0;
         }
+
         hr.dashed {
             border: none;
             border-top: 1px dashed var(--text-main);
             margin: 20px 0;
         }
+
         .info-box {
             border: 1px dashed var(--text-main);
             padding: 15px;
             margin-bottom: 20px;
         }
+
         .info-box ul {
             margin: 0;
             padding-left: 20px;
         }
+
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
+
         .metric-card {
             border: 1px dashed var(--text-main);
             padding: 15px;
             text-align: center;
         }
+
         .metric-value {
             font-size: 1.5em;
             margin-top: 10px;
         }
+
         .chart-container {
             border: 1px dashed var(--text-main);
             padding: 10px;
             margin-bottom: 20px;
         }
+
         .table-responsive {
             overflow-x: auto;
             width: 100%;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             border: 1px dashed var(--text-main);
         }
-        th, td {
+
+        th,
+        td {
             padding: 10px;
             text-align: left;
             border-bottom: 1px dashed var(--text-main);
         }
+
         th {
             cursor: pointer;
             border-bottom: 1px dashed var(--text-main);
         }
+
         th:hover {
             background-color: #222;
         }
+
         .badge {
             padding: 2px 5px;
             border: 1px dashed var(--text-main);
         }
+
         #error-msg {
             border: 1px dashed var(--text-main);
             text-align: center;
             padding: 20px;
             margin-bottom: 20px;
         }
+
         input[type="text"] {
             background-color: #000;
             color: #fff;
@@ -112,6 +137,7 @@
             width: 100%;
             max-width: 250px;
         }
+
         .flex-header {
             display: flex;
             justify-content: space-between;
@@ -120,291 +146,301 @@
             gap: 10px;
             margin-bottom: 15px;
         }
-        
+
         /* Mobile adjustments */
         @media (max-width: 600px) {
             body {
                 font-size: 12px;
                 padding: 10px;
             }
+
             .metrics-grid {
                 grid-template-columns: 1fr 1fr;
             }
+
             .flex-header {
                 flex-direction: column;
                 align-items: flex-start;
             }
+
             input[type="text"] {
                 max-width: 100%;
             }
         }
     </style>
 </head>
+
 <body>
 
-<div class="container">
-    <div class="header">
-        <h1>ETF Quant Engine - Batch Analysis</h1>
-        <p id="execution-time">Loading data...</p>
-        <p id="baseline-params"></p>
-        <hr class="dashed">
-    </div>
+    <div class="container">
+        <div class="header">
+            <h1>ETF Batch Analysis</h1>
+            <p id="execution-time">Loading data...</p>
+            <p id="baseline-params"></p>
+            <hr class="dashed">
+        </div>
 
-    <div id="error-msg" style="display: none;"></div>
+        <div id="error-msg" style="display: none;"></div>
 
-    <div class="info-box">
-        <h4>[ Dual-Cutoff Decision Logic ]</h4>
-        <ul>
-            <li>1. Down_prob (Prio 1): If the Prob Down exceeds the KS Cutoff, the signal is set to [ DOWN ].</li>
-            <li>2. Up_prob (Prio 2): If the risk is low, the Prob Up must clear a hard hurdle (e.g., 65%) to generate an [ UP ] signal.</li>
-            <li>3. Flat_prob: If neither rule applies, the model is undecided and declares the market as [ FLAT ].</li>
-        </ul>
-    </div>
-    
-    <div id="top-etfs-container" style="display: none; margin-bottom: 20px;">
         <div class="info-box">
-            <h4>[ Recommended Top ETFs ]</h4>
-            <p>
-                These ETFs are classified as UP by the model, have a model accuracy (CV Accuracy) of over 65%, and an UP probability below 90% (to exclude potentially faulty or overfitted classifications).
-            </p>
-            <div id="top-etfs-list" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
-                <!-- Dynamically populated -->
+            <h4>[ Dual-Cutoff Decision Logic ]</h4>
+            <ul>
+                <li>1. Down_prob (Prio 1): If the Prob Down exceeds the KS Cutoff, the signal is set to [ DOWN ].</li>
+                <li>2. Up_prob (Prio 2): If the risk is low, the Prob Up must clear a hard hurdle (e.g., 65%) to
+                    generate an [ UP ] signal.</li>
+                <li>3. Flat_prob: If neither rule applies, the model is undecided and declares the market as [ FLAT ].
+                </li>
+            </ul>
+        </div>
+
+        <div id="top-etfs-container" style="display: none; margin-bottom: 20px;">
+            <div class="info-box">
+                <h4>[ Recommended Top ETFs ]</h4>
+                <p>
+                    These ETFs are classified as UP by the model, have a model accuracy (CV Accuracy) of over 65%, and
+                    an UP probability below 90% (to exclude potentially faulty or overfitted classifications).
+                </p>
+                <div id="top-etfs-list" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                    <!-- Dynamically populated -->
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="metrics-grid">
-        <div class="metric-card">
-            <h3>Valid ETFs</h3>
-            <div class="metric-value" id="kpi-total">-</div>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <h3>Valid ETFs</h3>
+                <div class="metric-value" id="kpi-total">-</div>
+            </div>
+            <div class="metric-card">
+                <h3>Forecast: Up</h3>
+                <div class="metric-value" id="kpi-up">-</div>
+            </div>
+            <div class="metric-card">
+                <h3>Forecast: Down</h3>
+                <div class="metric-value" id="kpi-down">-</div>
+            </div>
+            <div class="metric-card">
+                <h3>Forecast: Flat</h3>
+                <div class="metric-value" id="kpi-flat">-</div>
+            </div>
         </div>
-        <div class="metric-card">
-            <h3>Forecast: Up</h3>
-            <div class="metric-value" id="kpi-up">-</div>
+
+        <div class="chart-container">
+            <div id="scatter-plot" style="width: 100%; height: 500px;"></div>
         </div>
-        <div class="metric-card">
-            <h3>Forecast: Down</h3>
-            <div class="metric-value" id="kpi-down">-</div>
+
+        <div class="flex-header">
+            <h3 style="margin: 0;">[ All Results ]</h3>
+            <input type="text" id="filter-input" placeholder="Search ticker or forecast..."
+                onkeyup="applyFilterAndSort()">
         </div>
-        <div class="metric-card">
-            <h3>Forecast: Flat</h3>
-            <div class="metric-value" id="kpi-flat">-</div>
+
+        <div class="table-responsive">
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th onclick="handleSort('ticker')">Ticker <span id="sort-icon-ticker">↕</span></th>
+                        <th onclick="handleSort('prediction_label')">Forecast <span
+                                id="sort-icon-prediction_label">↕</span></th>
+                        <th onclick="handleSort('prob_up')">Prob Up <span id="sort-icon-prob_up">↕</span></th>
+                        <th onclick="handleSort('prob_flat')">Prob Flat <span id="sort-icon-prob_flat">↕</span></th>
+                        <th onclick="handleSort('prob_down')">Prob Down <span id="sort-icon-prob_down">↕</span></th>
+                        <th onclick="handleSort('cv_accuracy')">CV Accuracy <span id="sort-icon-cv_accuracy">↕</span>
+                        </th>
+                        <th onclick="handleSort('ks_cutoff')">KS Cutoff <span id="sort-icon-ks_cutoff">↕</span></th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <div class="chart-container">
-        <div id="scatter-plot" style="width: 100%; height: 500px;"></div>
-    </div>
+    <script>
+        const JSON_URL = 'artifacts/latest_batch_results.json';
 
-    <div class="flex-header">
-        <h3 style="margin: 0;">[ All Results ]</h3>
-        <input type="text" id="filter-input" placeholder="Search ticker or forecast..." onkeyup="applyFilterAndSort()">
-    </div>
-    
-    <div class="table-responsive">
-        <table id="data-table">
-            <thead>
-                <tr>
-                    <th onclick="handleSort('ticker')">Ticker <span id="sort-icon-ticker">↕</span></th>
-                    <th onclick="handleSort('prediction_label')">Forecast <span id="sort-icon-prediction_label">↕</span></th>
-                    <th onclick="handleSort('prob_up')">Prob Up <span id="sort-icon-prob_up">↕</span></th>
-                    <th onclick="handleSort('prob_flat')">Prob Flat <span id="sort-icon-prob_flat">↕</span></th>
-                    <th onclick="handleSort('prob_down')">Prob Down <span id="sort-icon-prob_down">↕</span></th>
-                    <th onclick="handleSort('cv_accuracy')">CV Accuracy <span id="sort-icon-cv_accuracy">↕</span></th>
-                    <th onclick="handleSort('ks_cutoff')">KS Cutoff <span id="sort-icon-ks_cutoff">↕</span></th>
-                </tr>
-            </thead>
-            <tbody id="table-body">
-            </tbody>
-        </table>
-    </div>
-</div>
+        let globalValidData = [];
+        let currentSortCol = 'cv_accuracy';
+        let currentSortAsc = false;
 
-<script>
-    const JSON_URL = 'artifacts/latest_batch_results.json';
+        async function loadData() {
+            try {
+                const response = await fetch(JSON_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-    let globalValidData = [];
-    let currentSortCol = 'cv_accuracy';
-    let currentSortAsc = false;
+                const rawText = await response.text();
 
-    async function loadData() {
-        try {
-            const response = await fetch(JSON_URL);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            
-            const rawText = await response.text();
-            
-            const cleanText = rawText
-                .replace(/:\s*Infinity/g, ': "Infinity"')
-                .replace(/:\s*-Infinity/g, ': "-Infinity"')
-                .replace(/:\s*NaN/g, ': "NaN"');
-            
-            const data = JSON.parse(cleanText);
-            
-            if (data.execution_time) {
-                document.getElementById('execution-time').innerText = `Last Batch-Run: ${data.execution_time}`;
-            } else {
-                document.getElementById('execution-time').innerText = `Successfully loaded`;
+                const cleanText = rawText
+                    .replace(/:\s*Infinity/g, ': "Infinity"')
+                    .replace(/:\s*-Infinity/g, ': "-Infinity"')
+                    .replace(/:\s*NaN/g, ': "NaN"');
+
+                const data = JSON.parse(cleanText);
+
+                if (data.execution_time) {
+                    document.getElementById('execution-time').innerText = `Last Batch-Run: ${data.execution_time}`;
+                } else {
+                    document.getElementById('execution-time').innerText = `Successfully loaded`;
+                }
+
+                if (data.baseline_parameters) {
+                    document.getElementById('baseline-params').innerHTML =
+                        `Parameters: Inflation: ${(data.baseline_parameters.annual_inflation_rate * 100).toFixed(1)}% | ` +
+                        `Margin Up: ${(data.baseline_parameters.annual_margin_up * 100).toFixed(1)}% | ` +
+                        `Margin Down: ${(data.baseline_parameters.annual_margin_down * 100).toFixed(1)}%`;
+                }
+
+                processAndRender(data.results);
+            } catch (error) {
+                console.error("Error loading or parsing JSON:", error);
+                document.getElementById('error-msg').style.display = 'block';
+                document.getElementById('error-msg').innerText = `Error loading or parsing data. See Console (F12) for details.`;
             }
-            
-            if (data.baseline_parameters) {
-                document.getElementById('baseline-params').innerHTML = 
-                    `Parameters: Inflation: ${(data.baseline_parameters.annual_inflation_rate*100).toFixed(1)}% | ` +
-                    `Margin Up: ${(data.baseline_parameters.annual_margin_up*100).toFixed(1)}% | ` +
-                    `Margin Down: ${(data.baseline_parameters.annual_margin_down*100).toFixed(1)}%`;
-            }
-            
-            processAndRender(data.results);
-        } catch (error) {
-            console.error("Error loading or parsing JSON:", error);
-            document.getElementById('error-msg').style.display = 'block';
-            document.getElementById('error-msg').innerText = `Error loading or parsing data. See Console (F12) for details.`;
         }
-    }
 
-    function processAndRender(results) {
-        globalValidData = results.filter(item => {
-            const isQualityPassed = item.quality_gate_passed === true;
-            const isKsValid = item.ks_cutoff !== "Infinity" && item.ks_cutoff !== null && !isNaN(item.ks_cutoff);
-            return isQualityPassed && isKsValid;
-        });
+        function processAndRender(results) {
+            globalValidData = results.filter(item => {
+                const isQualityPassed = item.quality_gate_passed === true;
+                const isKsValid = item.ks_cutoff !== "Infinity" && item.ks_cutoff !== null && !isNaN(item.ks_cutoff);
+                return isQualityPassed && isKsValid;
+            });
 
-        const validData = globalValidData;
+            const validData = globalValidData;
 
-        let countUp = 0, countDown = 0, countFlat = 0;
-        validData.forEach(item => {
-            if (item.prediction_label === "Up") countUp++;
-            else if (item.prediction_label === "Down") countDown++;
-            else if (item.prediction_label === "Flat") countFlat++;
-        });
+            let countUp = 0, countDown = 0, countFlat = 0;
+            validData.forEach(item => {
+                if (item.prediction_label === "Up") countUp++;
+                else if (item.prediction_label === "Down") countDown++;
+                else if (item.prediction_label === "Flat") countFlat++;
+            });
 
-        document.getElementById('kpi-total').innerText = validData.length;
-        document.getElementById('kpi-up').innerText = countUp;
-        document.getElementById('kpi-down').innerText = countDown;
-        document.getElementById('kpi-flat').innerText = countFlat;
+            document.getElementById('kpi-total').innerText = validData.length;
+            document.getElementById('kpi-up').innerText = countUp;
+            document.getElementById('kpi-down').innerText = countDown;
+            document.getElementById('kpi-flat').innerText = countFlat;
 
-        renderPlot(validData);
-        renderTopEtfs(validData);
-        applyFilterAndSort();
-    }
+            renderPlot(validData);
+            renderTopEtfs(validData);
+            applyFilterAndSort();
+        }
 
-    function renderPlot(data) {
-        const traceUp = { x: [], y: [], text: [], mode: 'markers', name: 'Up', marker: { color: '#ffffff', symbol: 'triangle-up-open', size: 10 } };
-        const traceDown = { x: [], y: [], text: [], mode: 'markers', name: 'Down', marker: { color: '#ffffff', symbol: 'triangle-down-open', size: 10 } };
-        const traceFlat = { x: [], y: [], text: [], mode: 'markers', name: 'Flat', marker: { color: '#ffffff', symbol: 'circle-open', size: 10 } };
+        function renderPlot(data) {
+            const traceUp = { x: [], y: [], text: [], mode: 'markers', name: 'Up', marker: { color: '#ffffff', symbol: 'triangle-up-open', size: 10 } };
+            const traceDown = { x: [], y: [], text: [], mode: 'markers', name: 'Down', marker: { color: '#ffffff', symbol: 'triangle-down-open', size: 10 } };
+            const traceFlat = { x: [], y: [], text: [], mode: 'markers', name: 'Flat', marker: { color: '#ffffff', symbol: 'circle-open', size: 10 } };
 
-        data.forEach(item => {
-            const maxProb = Math.max(item.prob_up, item.prob_down, item.prob_flat);
-            const tooltip = `Ticker: ${item.ticker}<br>Accuracy: ${(item.cv_accuracy*100).toFixed(1)}%<br>Signal: ${(maxProb*100).toFixed(1)}%`;
-            
-            if (item.prediction_label === "Up") {
-                traceUp.x.push(item.cv_accuracy); traceUp.y.push(maxProb); traceUp.text.push(tooltip);
-            } else if (item.prediction_label === "Down") {
-                traceDown.x.push(item.cv_accuracy); traceDown.y.push(maxProb); traceDown.text.push(tooltip);
-            } else {
-                traceFlat.x.push(item.cv_accuracy); traceFlat.y.push(maxProb); traceFlat.text.push(tooltip);
-            }
-        });
+            data.forEach(item => {
+                const maxProb = Math.max(item.prob_up, item.prob_down, item.prob_flat);
+                const tooltip = `Ticker: ${item.ticker}<br>Accuracy: ${(item.cv_accuracy * 100).toFixed(1)}%<br>Signal: ${(maxProb * 100).toFixed(1)}%`;
 
-        const layout = {
-            title: { text: 'Model Quality vs. Signal Strength', font: { color: '#fff', family: 'monospace' } },
-            xaxis: { title: { text: 'CV Accuracy', font: { color: '#fff', family: 'monospace' } }, tickformat: ',.0%', tickfont: { color: '#fff', family: 'monospace' }, gridcolor: '#444' },
-            yaxis: { title: { text: 'Maximum Probability', font: { color: '#fff', family: 'monospace' } }, tickformat: ',.0%', tickfont: { color: '#fff', family: 'monospace' }, gridcolor: '#444' },
-            hovermode: 'closest',
-            paper_bgcolor: '#000',
-            plot_bgcolor: '#000',
-            legend: { font: { color: '#fff', family: 'monospace' } },
-            margin: { l: 60, r: 20, t: 40, b: 50 }
-        };
+                if (item.prediction_label === "Up") {
+                    traceUp.x.push(item.cv_accuracy); traceUp.y.push(maxProb); traceUp.text.push(tooltip);
+                } else if (item.prediction_label === "Down") {
+                    traceDown.x.push(item.cv_accuracy); traceDown.y.push(maxProb); traceDown.text.push(tooltip);
+                } else {
+                    traceFlat.x.push(item.cv_accuracy); traceFlat.y.push(maxProb); traceFlat.text.push(tooltip);
+                }
+            });
 
-        Plotly.newPlot('scatter-plot', [traceUp, traceDown, traceFlat], layout, {responsive: true});
-    }
+            const layout = {
+                title: { text: 'Model Quality vs. Signal Strength', font: { color: '#fff', family: 'monospace' } },
+                xaxis: { title: { text: 'CV Accuracy', font: { color: '#fff', family: 'monospace' } }, tickformat: ',.0%', tickfont: { color: '#fff', family: 'monospace' }, gridcolor: '#444' },
+                yaxis: { title: { text: 'Maximum Probability', font: { color: '#fff', family: 'monospace' } }, tickformat: ',.0%', tickfont: { color: '#fff', family: 'monospace' }, gridcolor: '#444' },
+                hovermode: 'closest',
+                paper_bgcolor: '#000',
+                plot_bgcolor: '#000',
+                legend: { font: { color: '#fff', family: 'monospace' } },
+                margin: { l: 60, r: 20, t: 40, b: 50 }
+            };
 
-    function renderTopEtfs(data) {
-        const topEtfs = data.filter(item => 
-            item.prediction_label === "Up" && 
-            item.cv_accuracy > 0.65 && 
-            item.prob_up < 0.90
-        );
+            Plotly.newPlot('scatter-plot', [traceUp, traceDown, traceFlat], layout, { responsive: true });
+        }
 
-        topEtfs.sort((a, b) => b.prob_up - a.prob_up);
+        function renderTopEtfs(data) {
+            const topEtfs = data.filter(item =>
+                item.prediction_label === "Up" &&
+                item.cv_accuracy > 0.65 &&
+                item.prob_up < 0.90
+            );
 
-        const container = document.getElementById('top-etfs-container');
-        const listContainer = document.getElementById('top-etfs-list');
-        
-        if (topEtfs.length > 0) {
-            container.style.display = 'block';
-            listContainer.innerHTML = '';
-            topEtfs.forEach(item => {
-                const etfCard = document.createElement('div');
-                etfCard.style.cssText = 'border: 1px dashed #fff; padding: 10px; text-align: center; min-width: 120px;';
-                etfCard.innerHTML = `
+            topEtfs.sort((a, b) => b.prob_up - a.prob_up);
+
+            const container = document.getElementById('top-etfs-container');
+            const listContainer = document.getElementById('top-etfs-list');
+
+            if (topEtfs.length > 0) {
+                container.style.display = 'block';
+                listContainer.innerHTML = '';
+                topEtfs.forEach(item => {
+                    const etfCard = document.createElement('div');
+                    etfCard.style.cssText = 'border: 1px dashed #fff; padding: 10px; text-align: center; min-width: 120px;';
+                    etfCard.innerHTML = `
                     <div style="font-weight: bold; font-size: 1.1em; margin-bottom: 5px;">${item.ticker}</div>
                     <div>UP: ${(item.prob_up * 100).toFixed(1)}%</div>
                     <div>CV Acc: ${(item.cv_accuracy * 100).toFixed(1)}%</div>
                 `;
-                listContainer.appendChild(etfCard);
-            });
-        } else {
-            container.style.display = 'none';
-        }
-    }
-
-    function handleSort(col) {
-        if (currentSortCol === col) {
-            currentSortAsc = !currentSortAsc;
-        } else {
-            currentSortCol = col;
-            currentSortAsc = false;
-            if (col === 'ticker' || col === 'prediction_label') {
-                currentSortAsc = true;
+                    listContainer.appendChild(etfCard);
+                });
+            } else {
+                container.style.display = 'none';
             }
         }
-        applyFilterAndSort();
-    }
 
-    function applyFilterAndSort() {
-        const filterText = document.getElementById('filter-input').value.toLowerCase();
-        
-        let filteredData = globalValidData.filter(item => {
-            return item.ticker.toLowerCase().includes(filterText) || 
-                   item.prediction_label.toLowerCase().includes(filterText);
-        });
-
-        filteredData.sort((a, b) => {
-            let valA = a[currentSortCol];
-            let valB = b[currentSortCol];
-            
-            if (typeof valA === 'string') valA = valA.toLowerCase();
-            if (typeof valB === 'string') valB = valB.toLowerCase();
-
-            if (valA < valB) return currentSortAsc ? -1 : 1;
-            if (valA > valB) return currentSortAsc ? 1 : -1;
-            return 0;
-        });
-
-        const columns = ['ticker', 'prediction_label', 'prob_up', 'prob_flat', 'prob_down', 'cv_accuracy', 'ks_cutoff'];
-        columns.forEach(col => {
-            const iconSpan = document.getElementById(`sort-icon-${col}`);
-            if (iconSpan) {
-                if (col === currentSortCol) {
-                    iconSpan.innerHTML = currentSortAsc ? '↑' : '↓';
-                } else {
-                    iconSpan.innerHTML = '↕';
+        function handleSort(col) {
+            if (currentSortCol === col) {
+                currentSortAsc = !currentSortAsc;
+            } else {
+                currentSortCol = col;
+                currentSortAsc = false;
+                if (col === 'ticker' || col === 'prediction_label') {
+                    currentSortAsc = true;
                 }
             }
-        });
+            applyFilterAndSort();
+        }
 
-        renderTable(filteredData);
-    }
+        function applyFilterAndSort() {
+            const filterText = document.getElementById('filter-input').value.toLowerCase();
 
-    function renderTable(data) {
-        const tbody = document.getElementById('table-body');
-        tbody.innerHTML = '';
+            let filteredData = globalValidData.filter(item => {
+                return item.ticker.toLowerCase().includes(filterText) ||
+                    item.prediction_label.toLowerCase().includes(filterText);
+            });
 
-        data.forEach(item => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
+            filteredData.sort((a, b) => {
+                let valA = a[currentSortCol];
+                let valB = b[currentSortCol];
+
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                if (valA < valB) return currentSortAsc ? -1 : 1;
+                if (valA > valB) return currentSortAsc ? 1 : -1;
+                return 0;
+            });
+
+            const columns = ['ticker', 'prediction_label', 'prob_up', 'prob_flat', 'prob_down', 'cv_accuracy', 'ks_cutoff'];
+            columns.forEach(col => {
+                const iconSpan = document.getElementById(`sort-icon-${col}`);
+                if (iconSpan) {
+                    if (col === currentSortCol) {
+                        iconSpan.innerHTML = currentSortAsc ? '↑' : '↓';
+                    } else {
+                        iconSpan.innerHTML = '↕';
+                    }
+                }
+            });
+
+            renderTable(filteredData);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
                 <td><strong>${item.ticker}</strong></td>
                 <td><span class="badge">[ ${item.prediction_label} ]</span></td>
                 <td>${(item.prob_up * 100).toFixed(1)}%</td>
@@ -413,12 +449,13 @@
                 <td>${(item.cv_accuracy * 100).toFixed(1)}%</td>
                 <td>${(item.ks_cutoff * 100).toFixed(1)}%</td>
             `;
-            tbody.appendChild(tr);
-        });
-    }
+                tbody.appendChild(tr);
+            });
+        }
 
-    loadData();
-</script>
+        loadData();
+    </script>
 
 </body>
+
 </html>
