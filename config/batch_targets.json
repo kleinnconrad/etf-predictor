@@ -1,6 +1,6 @@
 {
-    "generated_at": "2026-06-30 05:20:43",
-    "target_count": 172,
+    "generated_at": "2026-07-02 15:08:42",
+    "target_count": 170,
     "tickers": [
         "18MF.DE",
         "36BZ.DE",
@@ -28,7 +28,6 @@
         "EL42.DE",
         "EL4A.DE",
         "EL4B.DE",
-        "EL4F.DE",
         "EL4W.DE",
         "EL4X.DE",
         "EQQQ.DE",
@@ -56,7 +55,6 @@
         "EXV1.DE",
         "EXV2.DE",
         "EXV3.DE",
-        "EXV5.DE",
         "EXV6.DE",
         "EXV8.DE",
         "EXVM.DE",
@@ -78,7 +76,6 @@
         "IQQF.DE",
         "IQQH.DE",
         "IQQK.DE",
-        "IQQQ.DE",
         "IQQT.DE",
         "IQQW.DE",
         "IQQY.DE",
@@ -98,7 +95,6 @@
         "IUSQ.DE",
         "L8I3.DE",
         "LYM9.DE",
-        "LYMD.DE",
         "LYMS.DE",
         "LYMZ.DE",
         "LYPG.DE",
@@ -127,6 +123,7 @@
         "SXRG.DE",
         "SXRJ.DE",
         "SXRT.DE",
+        "SXRU.DE",
         "SXRV.DE",
         "UBU7.DE",
         "UBUD.DE",
@@ -173,6 +170,7 @@
         "ZPDT.DE",
         "ZPRG.DE",
         "ZPRR.DE",
-        "ZPRV.DE"
+        "ZPRV.DE",
+        "ZPRX.DE"
     ]
 }
