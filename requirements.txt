@@ -3,7 +3,7 @@ fredapi==0.5.2
 pandas==3.0.3
 numpy==2.0.1
 scikit-learn==1.9.0
-matplotlib==3.9.1
+matplotlib==3.11.0
 seaborn==0.13.2
 google-genai==0.3.0
 streamlit==1.59.2
