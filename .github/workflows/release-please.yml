@@ -14,5 +14,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           release-type: simple
+
+      - name: Append Legal Disclaimer to Release Notes
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY=$(gh release view ${{ steps.release.outputs.tag_name }} --json body -q .body)
+          
+          NEW_BODY="$BODY
+          
+          ---
+          **Legal & Attribution**
+          Copyright © 2026 Conrad Kleinn. Alle Rechte vorbehalten. / All rights reserved. > This software, its architectural components, and the associated quantitative methodology are the sole property of Conrad Kleinn. Unauthorized copying, modification, or distribution of this file via any medium is strictly prohibited."
+          
+          gh release edit ${{ steps.release.outputs.tag_name }} --notes "$NEW_BODY"
