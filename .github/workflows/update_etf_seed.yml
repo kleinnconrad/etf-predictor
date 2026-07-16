@@ -1,4 +1,4 @@
-name: Update ETF Batch Configuration
+name: 'Pipeline: 1. Update Seed'
 
 on:
   workflow_dispatch:

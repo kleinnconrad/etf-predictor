@@ -1,4 +1,4 @@
-name: Auto-Update Variable Catalog
+name: 'Docs: Update Catalog'
 
 on:
   push:
