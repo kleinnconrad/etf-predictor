@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/kleinnconrad/etf-predictor/compare/v1.4.0...v1.4.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* prevent depandabot from scanning seed list by changing file extension ([a2fcecf](https://github.com/kleinnconrad/etf-predictor/commit/a2fcecf6747ff9575ff15ee43f8981bdbbcd3504))
+
 ## [1.4.0](https://github.com/kleinnconrad/etf-predictor/compare/v1.3.0...v1.4.0) (2026-07-16)
 
 
