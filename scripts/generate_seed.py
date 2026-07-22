@@ -7,7 +7,7 @@ def main():
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     # The path to your official Xetra file
     csv_path = os.path.join(project_root, 'config', 't7-xetr-allTradableInstruments.csv')
-    output_path = os.path.join(project_root, 'config', 'all_etfs_seed.txt')
+    output_path = os.path.join(project_root, 'config', 'all_etfs_seed.list')
 
     if not os.path.exists(csv_path):
         print(f"Error: Please save the Xetra-Dump at:\n{csv_path}")

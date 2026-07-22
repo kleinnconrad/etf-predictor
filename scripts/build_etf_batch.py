@@ -19,7 +19,7 @@ SLEEP_BETWEEN_CHUNKS = 5
 
 def main():
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    seed_file_path = os.path.join(project_root, 'config', 'all_etfs_seed.txt')
+    seed_file_path = os.path.join(project_root, 'config', 'all_etfs_seed.list')
     
     if not os.path.exists(seed_file_path):
         print(f"Error: Seed file not found at {seed_file_path}")

@@ -244,7 +244,7 @@ To prevent lookahead bias, **FRED economic data** is structurally shifted forwar
 The process begins with the official "T7 All Tradable Instruments" CSV export from the Frankfurt Stock Exchange (Xetra). This provides a complete, unadulterated snapshot of the European market.
 
 **2. Seed Extraction (`scripts/generate_seed.py`)**
-This script parses the raw T7 dump, isolating only ETFs and ETCs actively traded in Euro (EUR). It automatically maps the official exchange mnemonics (e.g., `SXR8`) to their corresponding Yahoo Finance tickers by appending the Xetra suffix (e.g., `SXR8.DE`). The output is a comprehensive master list of approximately 3,000 European tickers (`config/all_etfs_seed.txt`).
+This script parses the raw T7 dump, isolating only ETFs and ETCs actively traded in Euro (EUR). It automatically maps the official exchange mnemonics (e.g., `SXR8`) to their corresponding Yahoo Finance tickers by appending the Xetra suffix (e.g., `SXR8.DE`). The output is a comprehensive master list of approximately 3,000 European tickers (`config/all_etfs_seed.list`).
 
 **3. Institutional Filtering (`scripts/build_etf_batch.py`)**
 To separate high-quality assets from illiquid or newly launched funds, this script deploys a rate-limited, multithreaded engine to evaluate all ~3,000 tickers via the Yahoo Finance API against strict institutional criteria:
