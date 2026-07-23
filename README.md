@@ -4,8 +4,6 @@
 
 This repository contains a machine learning pipeline to forecast the medium-term market development of a target ETF. The model classifies the future market state into three discrete classes: **Up**, **Down**, and **Flat**. The statistical foundation is a Multinomial Logistic Regression (Softmax).
 
-**ETF Single Mode Webservice:** [![ETF Quant Engine](https://img.shields.io/badge/Launch-Interactive_Dashboard-2ea44f?style=for-the-badge&logo=html5)](https://etf-predictor-production.up.railway.app)
-
 ## Motivation for ETF forecasting
 
 I specifically chose to forecast macro ETFs rather than individual equities, futures, or crypto assets for the following reasons:
@@ -35,7 +33,7 @@ I specifically chose to forecast macro ETFs rather than individual equities, fut
 - [Execution (Local & Development)](#execution-local--development)
 - [Dependency Management](#dependency-management)
 - [Release Process](#release-process)
-- [Cloud Deployment (Docker & Railway)](#cloud-deployment-docker--railway)
+- [Cloud Deployment (Docker)](#cloud-deployment-docker)
 
 ---
 
@@ -295,12 +293,11 @@ This repository uses [Google's Release Please](https://github.com/googleapis/rel
 
 ---
 
-## Cloud Deployment (Docker & Railway)
+## Cloud Deployment (Docker)
 
-The model is deployed as a web service using Streamlit, Docker, and Railway.app. 
+The model can be deployed as a web service using Streamlit and Docker. 
 * The `Dockerfile` handles system dependencies and exposes port 8501. 
-* Deployment is automated via GitHub integration on Railway. 
-* The `GEMINI_API_KEY` and `PORT` environment variables must be configured securely in the Railway dashboard. 
+* Make sure to provide the `GEMINI_API_KEY` environment variable securely in your deployment environment. 
 * The deployed application fetches live data and generates macroeconomic forecasts upon user request.
 
 [yahoo-finance-etf-overview](https://de.finance.yahoo.com/m%C3%A4rkte/etfs/top-performer/)
