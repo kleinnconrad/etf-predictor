@@ -1,8 +1,8 @@
 # ETF Predictor
+[![Pipeline: 1. Update Seed](https://github.com/kleinnconrad/etf-predictor/actions/workflows/update_etf_seed.yml/badge.svg?branch=main)](https://github.com/kleinnconrad/etf-predictor/actions/workflows/update_etf_seed.yml)
+[![Pipeline: 2. Run Batch](https://github.com/kleinnconrad/etf-predictor/actions/workflows/manual_batch.yml/badge.svg?branch=main)](https://github.com/kleinnconrad/etf-predictor/actions/workflows/manual_batch.yml)
 
 This repository contains a machine learning pipeline to forecast the medium-term market development of a target ETF. The model classifies the future market state into three discrete classes: **Up**, **Down**, and **Flat**. The statistical foundation is a Multinomial Logistic Regression (Softmax).
-
-**ETF Batch Analysis Dashboard:** [![ETF Quant Engine](https://img.shields.io/badge/Launch-Interactive_Dashboard-2ea44f?style=for-the-badge&logo=html5)](https://kleinnconrad.github.io/etf-predictor/)
 
 **ETF Single Mode Webservice:** [![ETF Quant Engine](https://img.shields.io/badge/Launch-Interactive_Dashboard-2ea44f?style=for-the-badge&logo=html5)](https://etf-predictor-production.up.railway.app)
 
