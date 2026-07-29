@@ -58,7 +58,7 @@ gitpython==3.1.51
     # via streamlit
 google-auth[requests]==2.56.0
     # via google-genai
-google-genai==2.14.0
+google-genai==2.15.0
     # via -r requirements.in
 h11==0.16.0
     # via
@@ -122,7 +122,7 @@ packaging==26.2
     #   altair
     #   matplotlib
     #   streamlit
-pandas==3.0.3
+pandas==3.0.5
     # via
     #   -r requirements.in
     #   fredapi
@@ -236,5 +236,5 @@ websockets==16.1
     #   google-genai
     #   streamlit
     #   yfinance
-yfinance==1.5.1
+yfinance==1.5.2
     # via -r requirements.in
