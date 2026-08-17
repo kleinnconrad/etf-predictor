@@ -13,30 +13,41 @@ This directory contains the core implementation of the quantitative ETF forecast
 ## Runtime View
 
 ```mermaid
-flowchart TD
-    Start([Execution Start]) --> ParseArgs[Parse Arguments]
-    ParseArgs --> IsBatch{Batch Mode?}
+sequenceDiagram
+    participant User as CLI / Web App
+    participant Main as main.py (Orchestrator)
+    participant Data as data_pipeline.py
+    participant Model as modeling.py
+    participant Ext as External APIs (YF/FRED)
+    participant FS as Local Storage
+
+    User->>Main: Execute pipeline (Batch / Single)
     
-    IsBatch -- Yes --> BatchInit[execute_batch_processing]
-    BatchInit --> FetchYahoo[Master-Fetch Yahoo Data]
-    FetchYahoo --> FetchFRED[Master-Fetch FRED Data]
-    FetchFRED --> LoopTickers[Loop Over Assigned Tickers]
-    LoopTickers --> RunPipeline[run_pipeline_for_ticker]
+    alt is Batch Mode
+        Main->>Ext: Master-Fetch Global Yahoo Data
+        Ext-->>Main: Returns Price Matrix
+        Main->>Ext: Master-Fetch FRED Data
+        Ext-->>Main: Returns Macro Series
+    end
     
-    IsBatch -- No --> RunPipeline
+    loop For each target ETF ticker
+        Main->>Data: load_and_prepare_data(ticker)
+        alt is Single Mode
+            Data->>Ext: Fetch Yahoo & FRED (if not pre-fetched)
+            Ext-->>Data: Data Series
+        end
+        Data-->>Main: X_train, y_train, X_live
+        
+        Main->>Model: perform_feature_selection()
+        Model-->>Main: selected_features, predictions, probabilities
+        
+        alt is Single Mode
+            Main->>FS: Export Diagnostic Artifacts (CSV)
+        end
+    end
     
-    RunPipeline --> DataPrep[load_and_prepare_data]
-    DataPrep --> FeatSel[perform_feature_selection]
-    FeatSel --> SingleOutput{Is Batch?}
-    
-    SingleOutput -- No --> ExportArtifacts[Export CSV Artifacts]
-    ExportArtifacts --> ReturnSingle[Return Single Result]
-    
-    SingleOutput -- Yes --> ReturnBatch[Return Single Result]
-    ReturnBatch --> NextTicker{More Tickers?}
-    NextTicker -- Yes --> LoopTickers
-    NextTicker -- No --> SaveJSON[Save JSON Results]
-    
-    ReturnSingle --> End([End Execution])
-    SaveJSON --> End
+    alt is Batch Mode
+        Main->>FS: Save batch_results.json
+    end
+    Main-->>User: Pipeline Complete
 ```
