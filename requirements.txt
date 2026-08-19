@@ -54,7 +54,7 @@ fredapi==0.5.2
     # via -r requirements.in
 google-auth[requests]==2.56.0
     # via google-genai
-google-genai==2.17.0
+google-genai==2.18.1
     # via -r requirements.in
 h11==0.16.0
     # via
@@ -85,6 +85,8 @@ jsonschema-specifications==2025.9.1
     # via jsonschema
 kiwisolver==1.5.0
     # via matplotlib
+lxml==6.1.2
+    # via yfinance
 markdown-it-py==4.2.0
     # via rich
 markupsafe==3.0.3
@@ -159,7 +161,7 @@ python-dateutil==2.9.0.post0
     # via
     #   matplotlib
     #   pandas
-python-dotenv==1.2.2
+python-dotenv==1.2.3
     # via -r requirements.in
 python-multipart==0.0.32
     # via streamlit
@@ -230,5 +232,5 @@ websockets==16.1
     #   google-genai
     #   streamlit
     #   yfinance
-yfinance==1.5.2
+yfinance==1.6.0
     # via -r requirements.in
