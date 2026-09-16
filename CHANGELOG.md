@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.0](https://github.com/kleinnconrad/etf-predictor/compare/v1.4.1...v1.5.0) (2026-09-16)
+
+
+### Features
+
+* switching to pyproject.toml for this project ([6b3f6e5](https://github.com/kleinnconrad/etf-predictor/commit/6b3f6e5b0558c92ba3b1f2c599fe6896604f210a))
+
+
+### Bug Fixes
+
+* locking transitive dependencies with uv.lock ([e9b7882](https://github.com/kleinnconrad/etf-predictor/commit/e9b7882c58d534a1ecd94d6b059003445edf366f))
+
 ## [1.4.1](https://github.com/kleinnconrad/etf-predictor/compare/v1.4.0...v1.4.1) (2026-07-22)
 
 
