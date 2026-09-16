@@ -19,8 +19,9 @@ This file contains foundational instructions and conventions for developing in t
 - The `README.md` must contain the folder structure of the repository, including information on what to find in each folder. Every time something changes with the folder structure, the folder structure in the `README.md` must be updated.
 
 ## 2. Dependencies
-- Always maintain a `requirements.txt` file at the root of the project.
-- Any time a new Python dependency is introduced, it must be explicitly added to `requirements.txt` with appropriate version pinning to ensure reproducible builds.
+- Always maintain a `pyproject.toml` file at the root of the project as the single source of truth for dependencies.
+- Any time a new Python dependency is introduced, it must be explicitly added to the `dependencies` array in `pyproject.toml` with appropriate version pinning to ensure reproducible builds.
+- Use `pip install .` to install the project and its dependencies.
 
 ## 3. Environment Execution
 - Execute local scripts using the Conda `myenv` environment to ensure consistency across local development setups.

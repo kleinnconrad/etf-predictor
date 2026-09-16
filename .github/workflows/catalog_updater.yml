@@ -20,10 +20,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version-file: '.python-version'
+          python-version-file: 'pyproject.toml'
 
       - name: Install dependencies
-        run: pip install google-genai
+        run: pip install .
 
       # ----------------------------------------------------------------
       # NEW: Enhanced Run Step with Retry Logic (Exponential Backoff)
