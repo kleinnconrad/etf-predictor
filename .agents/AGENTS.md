@@ -21,7 +21,7 @@ This file contains foundational instructions and conventions for developing in t
 ## 2. Dependencies
 - Always maintain a `pyproject.toml` file at the root of the project as the single source of truth for dependencies.
 - Any time a new Python dependency is introduced, it must be explicitly added to the `dependencies` array in `pyproject.toml` with appropriate version pinning to ensure reproducible builds.
-- Use `pip install .` to install the project and its dependencies.
+- Use `uv sync` to install the project and its locked dependencies. Always run `uv lock` after modifying `pyproject.toml` to update the lockfile (`uv.lock`).
 
 ## 3. Environment Execution
 - Execute local scripts using the Conda `myenv` environment to ensure consistency across local development setups.
