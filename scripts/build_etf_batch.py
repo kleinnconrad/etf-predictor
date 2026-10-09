@@ -1,7 +1,6 @@
 # scripts/build_etf_batch.py
 
 import yfinance as yf
-import pandas as pd
 import json
 import os
 import time
@@ -92,7 +91,7 @@ def main():
     valid_etfs.sort()
 
     print("\n" + "="*60)
-    print(f"SELECTION COMPLETED!")
+    print("SELECTION COMPLETED!")
     print(f"{len(valid_etfs)} highly liquid, proven ETFs are ready for the model.")
     print("="*60)
     

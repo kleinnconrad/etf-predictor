@@ -7,7 +7,6 @@ import argparse
 import random
 import time
 from datetime import datetime
-import pandas as pd
 import yfinance as yf
 
 from config import (
@@ -36,7 +35,7 @@ except ImportError:
 
 def run_pipeline_for_ticker(ticker, is_batch=False, timestamp=None, pre_fetched_yahoo=None, pre_fetched_fred=None):
     """Executes the prediction pipeline for a single ticker."""
-    print(f"\n" + "-"*40, flush=True)
+    print("\n" + "-"*40, flush=True)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] SUB-PROCESS: Calculating model for {ticker}", flush=True)
     print(f"Model uses static universe: {len(ALL_TICKERS)} tickers.", flush=True)
     print("-"*40, flush=True)
@@ -159,7 +158,7 @@ def execute_batch_processing(runner_id, total_runners):
     batch_config_path = os.path.join(project_root, 'config', 'batch_targets.json')
     
     if not os.path.exists(batch_config_path):
-        raise FileNotFoundError(f"Batch configuration missing. Please run scripts/build_etf_batch.py first.")
+        raise FileNotFoundError("Batch configuration missing. Please run scripts/build_etf_batch.py first.")
         
     with open(batch_config_path, 'r') as f:
         batch_config = json.load(f)
@@ -172,7 +171,7 @@ def execute_batch_processing(runner_id, total_runners):
     end_idx = start_idx + chunk_size
     my_tickers = all_tickers[start_idx:end_idx]
     
-    print(f"\n" + "="*60, flush=True)
+    print("\n" + "="*60, flush=True)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] BATCH GLOBAL INITIALIZATION", flush=True)
     print(f"RUNNER ID: {runner_id}/{total_runners}", flush=True)
     print(f"Processing block from index {start_idx} to {end_idx-1} ({len(my_tickers)} ETFs)", flush=True)
@@ -225,7 +224,7 @@ def execute_batch_processing(runner_id, total_runners):
     with open(output_file_path, 'w', encoding='utf-8') as f:
         json.dump(batch_results, f, indent=4)
         
-    print(f"\n" + "="*60, flush=True)
+    print("\n" + "="*60, flush=True)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] BATCH COMPLETE (Runner {runner_id}).", flush=True)
     print(f"Results successfully saved at: {output_file_path}", flush=True)
     print("="*60, flush=True)

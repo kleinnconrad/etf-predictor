@@ -7,3 +7,6 @@ output/*
 
 # Environment variables
 .env
+
+# Build artifacts
+*.egg-info/
