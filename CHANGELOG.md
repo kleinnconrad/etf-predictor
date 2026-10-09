@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0](https://github.com/kleinnconrad/etf-predictor/compare/v1.5.0...v1.6.0) (2026-10-09)
+
+
+### Features
+
+* pre merge pipeline ([da90409](https://github.com/kleinnconrad/etf-predictor/commit/da90409e7f5d60ed74a41f08a37c6db4c6a46545))
+* pre merge pipeline ([be01440](https://github.com/kleinnconrad/etf-predictor/commit/be014404c27577e8aebec6aa14a42d35d66657b6))
+
 ## [1.5.0](https://github.com/kleinnconrad/etf-predictor/compare/v1.4.1...v1.5.0) (2026-09-16)
 
 
