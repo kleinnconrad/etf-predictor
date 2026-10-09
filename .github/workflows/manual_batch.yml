@@ -13,10 +13,10 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version-file: 'pyproject.toml'
         cache: 'pip'
@@ -34,7 +34,7 @@ jobs:
         python src/main.py --batch --runner-id ${{ matrix.runner_id }} --total-runners 3
 
     - name: Save Temporary Batch Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: batch-result-${{ matrix.runner_id }}
         path: output/batch_results_runner_${{ matrix.runner_id }}.json
@@ -49,15 +49,15 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Download all partial batch results
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         path: downloaded_artifacts
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version-file: 'pyproject.toml'
 
