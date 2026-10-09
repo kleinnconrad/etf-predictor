@@ -231,10 +231,14 @@ def load_and_prepare_data(target_ticker, all_tickers, start_date, end_date, fore
     threshold_down = (ANNUAL_INFLATION_RATE - ANNUAL_MARGIN_DOWN) * time_scaling
 
     def categorize_return(ret):
-        if pd.isna(ret): return None
-        elif ret > threshold_up: return 1
-        elif ret < threshold_down: return -1
-        else: return 0
+        if pd.isna(ret):
+            return None
+        elif ret > threshold_up:
+            return 1
+        elif ret < threshold_down:
+            return -1
+        else:
+            return 0
             
     features['target_class'] = features['future_return'].apply(categorize_return)
 
