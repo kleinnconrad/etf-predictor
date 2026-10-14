@@ -34,7 +34,7 @@ jobs:
         python src/main.py --batch --runner-id ${{ matrix.runner_id }} --total-runners 3
 
     - name: Save Temporary Batch Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: batch-result-${{ matrix.runner_id }}
         path: output/batch_results_runner_${{ matrix.runner_id }}.json
@@ -52,7 +52,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Download all partial batch results
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         path: downloaded_artifacts
 
